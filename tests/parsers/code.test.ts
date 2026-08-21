@@ -41,6 +41,17 @@ describe('parseCodeFiles — access patterns', () => {
     expect(dynamic).toHaveLength(1);
     expect(dynamic[0].name).toBeNull();
   });
+
+  it('flags plain alias `const env = process.env` as dynamic/unauditable', () => {
+    const accesses = parse('const env = process.env;\nconst x = env.DATABASE_URL;');
+    // The alias site is flagged; env.DATABASE_URL is NOT separately recorded
+    // (it doesn't match the `process` identifier check)
+    const dynamic = accesses.filter((a) => a.accessType === 'dynamic');
+    expect(dynamic).toHaveLength(1);
+    expect(dynamic[0].name).toBeNull();
+    // No named access for DATABASE_URL via the alias
+    expect(accesses.find((a) => a.name === 'DATABASE_URL')).toBeUndefined();
+  });
 });
 
 describe('parseCodeFiles — client file detection', () => {
