@@ -6,6 +6,8 @@ import type {
 
 const NEXT_PUBLIC_PREFIX = 'NEXT_PUBLIC_';
 
+// Order matters: more-specific patterns must precede general ones because
+// Array.find returns the first match (e.g. PRIVATE_KEY before PRIVATE).
 const SECRET_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /^sk_/i, label: 'sk_' },
   { pattern: /^rk_/i, label: 'rk_' },
@@ -16,7 +18,6 @@ const SECRET_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /PASSWORD/i, label: '*PASSWORD*' },
   { pattern: /_TOKEN$/i, label: '*_TOKEN' },
   { pattern: /^TOKEN/i, label: 'TOKEN*' },
-  { pattern: /_KEY$/i, label: '*_KEY' },
 ];
 
 interface AnalysisResult {
@@ -42,7 +43,7 @@ export function analyze(
   const declaredButUnread = declarations.filter((d) => !readNames.has(d.name));
 
   // 2. Read in code but not declared in any env file
-  // Deduplicate by name so each missing var appears once (use first occurrence)
+  // Deduplicate by name — record only the first occurrence of each missing var
   const undeclaredMap = new Map<string, EnvAccess>();
   for (const access of namedAccesses) {
     if (!declaredNames.has(access.name) && !undeclaredMap.has(access.name)) {
@@ -52,9 +53,11 @@ export function analyze(
   const readButUndeclared = [...undeclaredMap.values()];
 
   // 3. Client-exposed — vars accessed from client-bundle code
-  const clientExposed: ClientExposedVar[] = [];
+  // Deduplicate by name: report each exposed var once (first occurrence)
+  const clientExposedMap = new Map<string, ClientExposedVar>();
   for (const access of namedAccesses) {
     if (!access.isClientFile) continue;
+    if (clientExposedMap.has(access.name)) continue;
 
     const hasPublicPrefix = access.name.startsWith(NEXT_PUBLIC_PREFIX);
     // Strip the public prefix before checking secret patterns so that
@@ -67,14 +70,14 @@ export function analyze(
     );
 
     if (!hasPublicPrefix) {
-      clientExposed.push({
+      clientExposedMap.set(access.name, {
         name: access.name,
         file: access.file,
         line: access.line,
         reason: 'missing-prefix',
       });
     } else if (secretMatch) {
-      clientExposed.push({
+      clientExposedMap.set(access.name, {
         name: access.name,
         file: access.file,
         line: access.line,
@@ -83,6 +86,7 @@ export function analyze(
       });
     }
   }
+  const clientExposed = [...clientExposedMap.values()];
 
   // 4. Unauditable — dynamic key access
   const unauditable = accesses.filter((a) => a.accessType === 'dynamic');

@@ -24,7 +24,7 @@ program
       if (opts.format === 'json') {
         process.stdout.write(formatJson(result) + '\n');
       } else {
-        process.stdout.write(formatTable(result, process.cwd()) + '\n');
+        process.stdout.write(formatTable(result, process.cwd(), version) + '\n');
       }
 
       // Exit codes: 1 = client-exposed (security), 2 = other findings only

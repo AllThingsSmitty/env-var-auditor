@@ -77,6 +77,31 @@ describe('analyze — client-exposed', () => {
     expect(result.clientExposed).toHaveLength(0);
   });
 
+  it('does not flag NEXT_PUBLIC_POSTHOG_KEY — analytics keys are not secrets', () => {
+    const result = analyze(
+      [decl('NEXT_PUBLIC_POSTHOG_KEY')],
+      [access('NEXT_PUBLIC_POSTHOG_KEY', true)],
+    );
+    expect(result.clientExposed).toHaveLength(0);
+  });
+
+  it('deduplicates clientExposed by name across multiple files', () => {
+    const makeAccess = (file: string): EnvAccess => ({
+      name: 'DATABASE_URL',
+      accessType: 'member',
+      file,
+      line: 1,
+      column: 0,
+      isClientFile: true,
+    });
+    const result = analyze(
+      [decl('DATABASE_URL')],
+      [makeAccess('/a.tsx'), makeAccess('/b.tsx'), makeAccess('/c.tsx')],
+    );
+    expect(result.clientExposed).toHaveLength(1);
+    expect(result.clientExposed[0].file).toBe('/a.tsx');
+  });
+
   it('flags NEXT_PUBLIC_ vars matching a secret pattern', () => {
     const result = analyze(
       [decl('NEXT_PUBLIC_SK_LIVE_KEY')],

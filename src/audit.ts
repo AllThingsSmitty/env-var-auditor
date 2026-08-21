@@ -30,6 +30,11 @@ const DEFAULT_IGNORE = [
   '**/*.d.ts',
   '**/.turbo/**',
   '**/.cache/**',
+  '**/*.test.{ts,tsx,js,jsx,mjs}',
+  '**/*.spec.{ts,tsx,js,jsx,mjs}',
+  '**/__tests__/**',
+  '**/test/**',
+  '**/tests/**',
 ];
 
 export async function audit(options: AuditOptions): Promise<AuditResult> {

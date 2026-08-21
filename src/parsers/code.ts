@@ -48,7 +48,7 @@ export function parseCodeFiles(
           accessType: 'member',
           file: sourceFile.getFilePath(),
           line: parent.getStartLineNumber(),
-          column: parent.getStartLinePos(),
+          column: parent.getStart() - parent.getStartLinePos(),
           isClientFile: clientFile,
         });
       } else if (Node.isElementAccessExpression(parent)) {
@@ -60,7 +60,7 @@ export function parseCodeFiles(
             accessType: 'bracket',
             file: sourceFile.getFilePath(),
             line: parent.getStartLineNumber(),
-            column: parent.getStartLinePos(),
+            column: parent.getStart() - parent.getStartLinePos(),
             isClientFile: clientFile,
           });
         } else {
@@ -70,7 +70,7 @@ export function parseCodeFiles(
             accessType: 'dynamic',
             file: sourceFile.getFilePath(),
             line: parent.getStartLineNumber(),
-            column: parent.getStartLinePos(),
+            column: parent.getStart() - parent.getStartLinePos(),
             isClientFile: clientFile,
           });
         }
@@ -96,20 +96,20 @@ export function parseCodeFiles(
                 accessType: 'destructure',
                 file: sourceFile.getFilePath(),
                 line: element.getStartLineNumber(),
-                column: element.getStartLinePos(),
+                column: element.getStart() - element.getStartLinePos(),
                 isClientFile: clientFile,
               });
             }
           }
         } else {
-          // const env = process.env — aliased reference; subsequent env.FOO
-          // accesses cannot be tracked statically, so flag the alias site.
+          // const env = process.env — plain alias; subsequent env.FOO accesses
+          // cannot be tracked statically, so flag the assignment site itself.
           accesses.push({
             name: null,
             accessType: 'dynamic',
             file: sourceFile.getFilePath(),
             line: node.getStartLineNumber(),
-            column: node.getStartLinePos(),
+            column: node.getStart() - node.getStartLinePos(),
             isClientFile: clientFile,
           });
         }
@@ -120,7 +120,7 @@ export function parseCodeFiles(
           accessType: 'dynamic',
           file: sourceFile.getFilePath(),
           line: node.getStartLineNumber(),
-          column: node.getStartLinePos(),
+          column: node.getStart() - node.getStartLinePos(),
           isClientFile: clientFile,
         });
       }
