@@ -1,4 +1,4 @@
-# env-var-auditor
+# Environment Variable Auditor
 
 Static analysis CLI that audits environment variable usage in Node.js and Next.js projects. Finds three categories of problems that runtime validators miss entirely.
 
@@ -82,12 +82,12 @@ env-var-auditor . --ignore "packages/legacy/**"
 
 ## Exit codes
 
-| Code | Meaning |
-|------|---------|
-| `0` | Clean — no findings |
-| `1` | Client-exposed variables found (security risk — block CI) |
-| `2` | Other findings only (undeclared or unused vars) |
-| `3` | Unexpected error |
+| Code | Meaning                                                   |
+| ---- | --------------------------------------------------------- |
+| `0`  | Clean — no findings                                       |
+| `1`  | Client-exposed variables found (security risk — block CI) |
+| `2`  | Other findings only (undeclared or unused vars)           |
+| `3`  | Unexpected error                                          |
 
 Use exit code `1` as a hard CI gate. Example GitHub Actions step:
 
@@ -100,17 +100,22 @@ Use exit code `1` as a hard CI gate. Example GitHub Actions step:
 ## What it detects
 
 ### Declared but unread
+
 Variables present in `.env` / `.env.example` that are never referenced in source code. Safe to remove.
 
 ### Read but undeclared
+
 Variables referenced in code (`process.env.X`) that are missing from every `.env*` file. Will be `undefined` at runtime unless set some other way (CI secrets, deploy config).
 
 ### Client-exposed
+
 Variables accessed from Client Components (`'use client'`) that either:
+
 - **Lack the `NEXT_PUBLIC_` prefix** — Next.js will include the raw access in the bundle (value is `undefined` in prod, but the pattern can still be exploited in dev)
 - **Have `NEXT_PUBLIC_` but match a secret pattern** — `sk_`, `whsec_`, `*SECRET*`, `*_KEY`, etc. These will be inlined into the bundle and shipped to every browser
 
 ### Unauditable
+
 Dynamic key access (`process.env[someVar]`) where the key cannot be determined statically. Flagged explicitly so you know they exist.
 
 ## Detection approach
@@ -118,10 +123,10 @@ Dynamic key access (`process.env[someVar]`) where the key cannot be determined s
 AST-based parsing via the TypeScript compiler API (via `ts-morph`), not regex. Handles all four access patterns:
 
 ```ts
-process.env.FOO            // member access
-process.env['FOO']         // bracket access with string literal
-const { FOO } = process.env  // destructuring
-process.env[someVar]       // dynamic — flagged as unauditable
+process.env.FOO; // member access
+process.env["FOO"]; // bracket access with string literal
+const { FOO } = process.env; // destructuring
+process.env[someVar]; // dynamic — flagged as unauditable
 ```
 
 ## Supported env files
