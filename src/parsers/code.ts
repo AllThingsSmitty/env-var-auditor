@@ -75,9 +75,9 @@ export function parseCodeFiles(
           });
         }
       } else if (Node.isVariableDeclaration(parent)) {
-        // const { FOO, BAR } = process.env
         const nameNode = parent.getNameNode();
         if (Node.isObjectBindingPattern(nameNode)) {
+          // const { FOO, BAR } = process.env
           for (const element of nameNode.getElements()) {
             const propNameNode = element.getPropertyNameNode();
             const bindingName = element.getNameNode();
@@ -101,6 +101,17 @@ export function parseCodeFiles(
               });
             }
           }
+        } else {
+          // const env = process.env — aliased reference; subsequent env.FOO
+          // accesses cannot be tracked statically, so flag the alias site.
+          accesses.push({
+            name: null,
+            accessType: 'dynamic',
+            file: sourceFile.getFilePath(),
+            line: node.getStartLineNumber(),
+            column: node.getStartLinePos(),
+            isClientFile: clientFile,
+          });
         }
       } else {
         // Spread, function arg, etc. — cannot determine which vars are accessed
