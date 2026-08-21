@@ -18,7 +18,7 @@ function makeTable(head: string[]): Table.Table {
   });
 }
 
-export function formatTable(result: AuditResult, cwd: string): string {
+export function formatTable(result: AuditResult, cwd: string, version: string): string {
   const lines: string[] = [];
 
   const total =
@@ -28,7 +28,7 @@ export function formatTable(result: AuditResult, cwd: string): string {
 
   lines.push(
     chalk.bold(`env-var-auditor`) +
-      `  v0.1.0  ·  ` +
+      `  v${version}  ·  ` +
       chalk.dim(`${result.scannedFiles} files  ·  ${result.scannedEnvFiles} env files`),
   );
   lines.push('');
