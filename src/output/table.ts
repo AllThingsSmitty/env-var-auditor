@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import Table from 'cli-table3';
 import path from 'path';
-import type { AuditResult } from '../types.js';
+import type { AuditResult, WorkspaceAuditResult } from '../types.js';
 
 function relPath(absPath: string, cwd: string): string {
   return path.relative(cwd, absPath).replace(/\\/g, '/');
@@ -102,6 +102,70 @@ export function formatTable(result: AuditResult, cwd: string, version: string): 
     if (result.declaredButUnread.length > 0)
       parts.push(chalk.dim(`${result.declaredButUnread.length} unused`));
     lines.push(`${total} finding${total === 1 ? '' : 's'}  (${parts.join(', ')})`);
+  }
+
+  return lines.join('\n');
+}
+
+export function formatWorkspaceTable(
+  workspace: WorkspaceAuditResult,
+  cwd: string,
+  version: string,
+): string {
+  const lines: string[] = [];
+
+  const totalFiles = workspace.packages.reduce((n, p) => n + p.result.scannedFiles, 0);
+  const totalEnvFiles = workspace.packages.reduce((n, p) => n + p.result.scannedEnvFiles, 0);
+
+  lines.push(
+    chalk.bold(`env-var-auditor`) +
+      `  v${version}  ·  workspace  ·  ` +
+      chalk.dim(
+        `${workspace.packages.length} packages  ·  ${totalFiles} files  ·  ${totalEnvFiles} env files`,
+      ),
+  );
+  lines.push('');
+
+  for (const pkg of workspace.packages) {
+    const { result } = pkg;
+    const pkgFindings =
+      result.clientExposed.length + result.readButUndeclared.length + result.declaredButUnread.length;
+
+    const pkgLabel = chalk.bold(`▸ ${pkg.packageName}`) + chalk.dim(`  ${pkg.packageDir}`);
+    lines.push(pkgLabel);
+
+    if (pkgFindings === 0 && result.unauditable.length === 0) {
+      lines.push(chalk.green('  No findings'));
+    } else {
+      // Indent the per-package table output by prepending two spaces per line
+      const inner = formatTable(result, cwd, version)
+        .split('\n')
+        .slice(2) // strip the header line the inner call emits
+        .map((l) => `  ${l}`)
+        .join('\n');
+      lines.push(inner);
+    }
+
+    lines.push('');
+  }
+
+  // Workspace-level summary
+  const allClientExposed = workspace.packages.reduce(
+    (n, p) => n + p.result.clientExposed.length,
+    0,
+  );
+  const allOther = workspace.packages.reduce(
+    (n, p) => n + p.result.readButUndeclared.length + p.result.declaredButUnread.length,
+    0,
+  );
+
+  if (allClientExposed === 0 && allOther === 0) {
+    lines.push(chalk.green('Workspace clean — no findings across all packages.'));
+  } else {
+    const parts: string[] = [];
+    if (allClientExposed > 0) parts.push(chalk.red(`${allClientExposed} client-exposed`));
+    if (allOther > 0) parts.push(chalk.yellow(`${allOther} other findings`));
+    lines.push(`Workspace total: ${parts.join(', ')}`);
   }
 
   return lines.join('\n');
