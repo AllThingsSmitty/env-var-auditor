@@ -35,5 +35,23 @@ export interface AuditResult {
 
 export interface AuditOptions {
   dir: string;
+  /** Repo root for env-file inheritance (monorepo mode). Root .env* files are
+   *  merged as base declarations; package-level files overlay them. */
+  rootDir?: string;
+  ignorePatterns?: string[];
+}
+
+export interface PackageAuditResult {
+  packageName: string;
+  packageDir: string;
+  result: AuditResult;
+}
+
+export interface WorkspaceAuditResult {
+  packages: PackageAuditResult[];
+}
+
+export interface WorkspaceAuditOptions {
+  rootDir: string;
   ignorePatterns?: string[];
 }

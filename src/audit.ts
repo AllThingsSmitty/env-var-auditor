@@ -37,22 +37,39 @@ const DEFAULT_IGNORE = [
   '**/tests/**',
 ];
 
-export async function audit(options: AuditOptions): Promise<AuditResult> {
-  const dir = path.resolve(options.dir);
-  const ignorePatterns = [...DEFAULT_IGNORE, ...(options.ignorePatterns ?? [])];
-
-  // 1. Collect declared env vars from all .env* files
-  const allDeclarations: EnvDeclaration[] = [];
-  const foundEnvFiles: string[] = [];
+function collectEnvDeclarations(searchDir: string): { declarations: EnvDeclaration[]; envFiles: string[] } {
+  const declarations: EnvDeclaration[] = [];
+  const envFiles: string[] = [];
 
   for (const name of ENV_FILE_NAMES) {
-    const fullPath = path.join(dir, name);
+    const fullPath = path.join(searchDir, name);
     if (fs.existsSync(fullPath)) {
-      foundEnvFiles.push(fullPath);
+      envFiles.push(fullPath);
       const content = fs.readFileSync(fullPath, 'utf-8');
-      allDeclarations.push(...parseEnvFile(content, fullPath));
+      declarations.push(...parseEnvFile(content, fullPath));
     }
   }
+
+  return { declarations, envFiles };
+}
+
+export async function audit(options: AuditOptions): Promise<AuditResult> {
+  const dir = path.resolve(options.dir);
+  const rootDir = options.rootDir ? path.resolve(options.rootDir) : undefined;
+  const ignorePatterns = [...DEFAULT_IGNORE, ...(options.ignorePatterns ?? [])];
+
+  // 1. Collect declared env vars — root first (base), then package (overlay)
+  const { declarations: rootDeclarations, envFiles: rootEnvFiles } =
+    rootDir && rootDir !== dir ? collectEnvDeclarations(rootDir) : { declarations: [], envFiles: [] };
+
+  const { declarations: pkgDeclarations, envFiles: pkgEnvFiles } = collectEnvDeclarations(dir);
+
+  // Package-level names shadow root-level names so root dupes don't inflate counts
+  const pkgNames = new Set(pkgDeclarations.map((d) => d.name));
+  const filteredRootDeclarations = rootDeclarations.filter((d) => !pkgNames.has(d.name));
+
+  const allDeclarations: EnvDeclaration[] = [...filteredRootDeclarations, ...pkgDeclarations];
+  const foundEnvFiles = [...rootEnvFiles, ...pkgEnvFiles];
 
   // 2. Find source files
   const sourceFiles = await glob(SOURCE_GLOBS, {
@@ -72,9 +89,21 @@ export async function audit(options: AuditOptions): Promise<AuditResult> {
   // 4. Cross-reference
   const analysis = analyze(allDeclarations, allAccesses);
 
+  // 5. Root-level declarations that go unread in this package are not a finding —
+  //    they may be consumed by other packages in the workspace.
+  //    A "root-level" declaration is one that lives under rootDir but NOT under dir.
+  const declaredButUnread = rootDir
+    ? analysis.declaredButUnread.filter((d) => {
+        const inRoot = d.source.startsWith(rootDir + path.sep);
+        const inPkg = d.source.startsWith(dir + path.sep);
+        return !(inRoot && !inPkg);
+      })
+    : analysis.declaredButUnread;
+
   return {
     scannedFiles: sourceFiles.length,
     scannedEnvFiles: foundEnvFiles.length,
     ...analysis,
+    declaredButUnread,
   };
 }
