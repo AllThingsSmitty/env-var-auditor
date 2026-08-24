@@ -18,20 +18,14 @@ function makeTable(head: string[]): Table.Table {
   });
 }
 
-export function formatTable(result: AuditResult, cwd: string, version: string): string {
+/** Renders finding sections and summary — no tool header. Used by both formatters. */
+function formatFindings(result: AuditResult, cwd: string): string {
   const lines: string[] = [];
 
   const total =
     result.clientExposed.length +
     result.readButUndeclared.length +
     result.declaredButUnread.length;
-
-  lines.push(
-    chalk.bold(`env-var-auditor`) +
-      `  v${version}  ·  ` +
-      chalk.dim(`${result.scannedFiles} files  ·  ${result.scannedEnvFiles} env files`),
-  );
-  lines.push('');
 
   // ── CLIENT-EXPOSED ──────────────────────────────────────────────────────────
   if (result.clientExposed.length > 0) {
@@ -82,7 +76,9 @@ export function formatTable(result: AuditResult, cwd: string, version: string): 
   // ── UNAUDITABLE ─────────────────────────────────────────────────────────────
   if (result.unauditable.length > 0) {
     lines.push(
-      chalk.dim(`UNAUDITABLE  ${result.unauditable.length} dynamic access${result.unauditable.length === 1 ? '' : 'es'} (cannot determine variable names)`),
+      chalk.dim(
+        `UNAUDITABLE  ${result.unauditable.length} dynamic access${result.unauditable.length === 1 ? '' : 'es'} (cannot determine variable names)`,
+      ),
     );
     for (const v of result.unauditable) {
       lines.push(chalk.dim(`  ${loc(v.file, v.line, cwd)}  →  process.env[dynamic]`));
@@ -91,9 +87,9 @@ export function formatTable(result: AuditResult, cwd: string, version: string): 
   }
 
   // ── SUMMARY ─────────────────────────────────────────────────────────────────
-  if (total === 0) {
+  if (total === 0 && result.unauditable.length === 0) {
     lines.push(chalk.green('No findings — all env vars accounted for.'));
-  } else {
+  } else if (total > 0) {
     const parts: string[] = [];
     if (result.clientExposed.length > 0)
       parts.push(chalk.red(`${result.clientExposed.length} client-exposed`));
@@ -105,6 +101,15 @@ export function formatTable(result: AuditResult, cwd: string, version: string): 
   }
 
   return lines.join('\n');
+}
+
+export function formatTable(result: AuditResult, cwd: string, version: string): string {
+  const header =
+    chalk.bold(`env-var-auditor`) +
+    `  v${version}  ·  ` +
+    chalk.dim(`${result.scannedFiles} files  ·  ${result.scannedEnvFiles} env files`);
+
+  return [header, '', formatFindings(result, cwd)].join('\n');
 }
 
 export function formatWorkspaceTable(
@@ -129,21 +134,19 @@ export function formatWorkspaceTable(
   for (const pkg of workspace.packages) {
     const { result } = pkg;
     const pkgFindings =
-      result.clientExposed.length + result.readButUndeclared.length + result.declaredButUnread.length;
+      result.clientExposed.length +
+      result.readButUndeclared.length +
+      result.declaredButUnread.length;
 
-    const pkgLabel = chalk.bold(`▸ ${pkg.packageName}`) + chalk.dim(`  ${pkg.packageDir}`);
-    lines.push(pkgLabel);
+    lines.push(
+      chalk.bold(`▸ ${pkg.packageName}`) +
+        chalk.dim(`  ${relPath(pkg.packageDir, cwd)}`),
+    );
 
     if (pkgFindings === 0 && result.unauditable.length === 0) {
       lines.push(chalk.green('  No findings'));
     } else {
-      // Indent the per-package table output by prepending two spaces per line
-      const inner = formatTable(result, cwd, version)
-        .split('\n')
-        .slice(2) // strip the header line the inner call emits
-        .map((l) => `  ${l}`)
-        .join('\n');
-      lines.push(inner);
+      lines.push(formatFindings(result, cwd));
     }
 
     lines.push('');
