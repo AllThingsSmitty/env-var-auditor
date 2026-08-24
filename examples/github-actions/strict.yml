@@ -1,0 +1,69 @@
+# Strict env-var-auditor integration with differentiated exit code handling.
+#
+# Exit 1 (client-exposed secret)  → hard fail — blocks the PR.
+# Exit 2 (undeclared / unused)    → soft warn — job annotates but does not block.
+# Exit 3 (tool error)             → hard fail.
+#
+# JSON output is captured so the annotation step can echo structured details.
+
+name: Env Var Audit (strict)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  audit:
+    name: Audit environment variables
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install env-var-auditor
+        run: npm install -g env-var-auditor@0.1.0
+
+      # Capture the audit result as JSON and save the exit code.
+      # The step itself always succeeds so we can branch on the exit code below.
+      - name: Run audit
+        id: audit
+        run: |
+          set +e
+          env-var-auditor . --format json > audit-results.json
+          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+
+      # Hard fail: client-exposed secret found (exit 1).
+      - name: Fail on client-exposed secrets
+        if: steps.audit.outputs.exit_code == '1'
+        run: |
+          cat audit-results.json
+          echo "::error::Client-exposed secrets detected. Review the audit output above and move server-only vars out of NEXT_PUBLIC_ / client bundles."
+          exit 1
+
+      # Soft warn: undeclared or unused vars found (exit 2).
+      - name: Warn on undeclared or unused vars
+        if: steps.audit.outputs.exit_code == '2'
+        run: |
+          cat audit-results.json
+          echo "::warning::Undeclared or unused env vars detected. Review the audit output above."
+
+      # Hard fail: tool itself errored (exit 3).
+      - name: Fail on tool error
+        if: steps.audit.outputs.exit_code == '3'
+        run: |
+          echo "::error::env-var-auditor encountered an error. Check that the target directory is valid and accessible."
+          exit 3
+
+      # Upload JSON report as a workflow artifact for further inspection.
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: env-audit-report
+          path: audit-results.json
+          retention-days: 7

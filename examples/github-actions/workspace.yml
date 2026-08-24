@@ -1,0 +1,31 @@
+# Env-var-auditor integration for a pnpm monorepo / workspace.
+#
+# --workspaces discovers every package listed in pnpm-workspace.yaml
+# and audits each one, inheriting root .env* declarations.
+# The exit code reflects the worst finding across all packages.
+
+name: Env Var Audit (workspace)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  audit:
+    name: Audit workspace environment variables
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install env-var-auditor
+        run: npm install -g env-var-auditor@0.1.0
+
+      # Run from the monorepo root so the tool can resolve pnpm-workspace.yaml.
+      - name: Run workspace audit
+        run: env-var-auditor . --workspaces

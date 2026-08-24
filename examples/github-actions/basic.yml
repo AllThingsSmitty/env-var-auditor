@@ -1,0 +1,33 @@
+# Basic env-var-auditor integration for a single Next.js / Node.js project.
+#
+# Any findings cause a non-zero exit code and fail the job:
+#   Exit 1 — client-exposed secret detected
+#   Exit 2 — undeclared or unused env var detected
+#   Exit 3 — tool error (bad path, parse failure)
+
+name: Env Var Audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  audit:
+    name: Audit environment variables
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Pin the version to keep CI reproducible.
+      - name: Install env-var-auditor
+        run: npm install -g env-var-auditor@0.1.0
+
+      # Audit the project root. Replace '.' with a subdirectory if needed.
+      - name: Run audit
+        run: env-var-auditor .
