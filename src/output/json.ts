@@ -1,4 +1,4 @@
-import type { AuditResult } from '../types.js';
+import type { AuditResult, WorkspaceAuditResult } from '../types.js';
 
 export function formatJson(result: AuditResult): string {
   return JSON.stringify(
@@ -19,4 +19,25 @@ export function formatJson(result: AuditResult): string {
     null,
     2,
   );
+}
+
+export function formatWorkspaceJson(workspace: WorkspaceAuditResult): string {
+  const packages = workspace.packages.map((pkg) => ({
+    packageName: pkg.packageName,
+    packageDir: pkg.packageDir,
+    summary: {
+      scannedFiles: pkg.result.scannedFiles,
+      scannedEnvFiles: pkg.result.scannedEnvFiles,
+      clientExposed: pkg.result.clientExposed.length,
+      readButUndeclared: pkg.result.readButUndeclared.length,
+      declaredButUnread: pkg.result.declaredButUnread.length,
+      unauditable: pkg.result.unauditable.length,
+    },
+    clientExposed: pkg.result.clientExposed,
+    readButUndeclared: pkg.result.readButUndeclared,
+    declaredButUnread: pkg.result.declaredButUnread,
+    unauditable: pkg.result.unauditable,
+  }));
+
+  return JSON.stringify({ packages }, null, 2);
 }
