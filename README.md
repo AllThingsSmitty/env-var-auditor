@@ -73,6 +73,9 @@ env-var-auditor .
 # Scan a specific project
 env-var-auditor /path/to/project
 
+# Scan all packages in a monorepo (reads pnpm-workspace.yaml)
+env-var-auditor . --workspaces
+
 # JSON output for CI pipelines
 env-var-auditor . --format json
 
@@ -89,13 +92,13 @@ env-var-auditor . --ignore "packages/legacy/**"
 | `2`  | Other findings only (undeclared or unused vars)           |
 | `3`  | Unexpected error                                          |
 
-Use exit code `1` as a hard CI gate. Example GitHub Actions step:
+Use exit code `1` as a hard CI gate. Ready-to-use GitHub Actions workflows are in [`examples/github-actions/`](examples/github-actions/):
 
-```yaml
-- name: Audit env vars
-  run: npx env-var-auditor .
-  # Fails the build if any secrets are leaking into the client bundle
-```
+| File | Use case |
+| ---- | -------- |
+| `basic.yml` | Any finding fails the job |
+| `workspace.yml` | Same, with `--workspaces` for monorepos |
+| `strict.yml` | Exit 1 = hard fail, exit 2 = warning annotation, JSON report uploaded as artifact |
 
 ## What it detects
 
@@ -133,8 +136,7 @@ process.env[someVar]; // dynamic — flagged as unauditable
 
 `.env`, `.env.local`, `.env.example`, `.env.production`, `.env.development`, `.env.test`, `.env.staging`, and their `.local` variants.
 
-## Limitations (v0.1)
+## Limitations
 
-- Single-repo projects only (monorepo support planned for v0.2)
 - Does not track aliased references: `const env = process.env; env.FOO` — only direct `process.env.*` access is detected
 - Dynamic keys are flagged but not resolved
