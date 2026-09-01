@@ -87,7 +87,9 @@ export async function audit(options: AuditOptions): Promise<AuditResult> {
   const allAccesses = parseCodeFiles(fileContents);
 
   // 4. Cross-reference
-  const analysis = analyze(allDeclarations, allAccesses);
+  const analysis = analyze(allDeclarations, allAccesses, {
+    extraSecretPatterns: options.secretPatterns,
+  });
 
   // 5. Root-level declarations that go unread in this package are not a finding —
   //    they may be consumed by other packages in the workspace.

@@ -121,6 +121,31 @@ describe('analyze — client-exposed', () => {
     );
     expect(result.clientExposed).toHaveLength(0);
   });
+
+  it('flags vars matching custom secret patterns from config', () => {
+    const result = analyze(
+      [decl('ACME_INTERNAL_API_KEY')],
+      [access('ACME_INTERNAL_API_KEY', true)],
+      { extraSecretPatterns: ['^ACME_INTERNAL_'] },
+    );
+    expect(result.clientExposed).toHaveLength(1);
+    expect(result.clientExposed[0]).toMatchObject({
+      name: 'ACME_INTERNAL_API_KEY',
+      reason: 'secret-pattern',
+      secretPattern: '^ACME_INTERNAL_',
+    });
+  });
+
+  it('combines built-in and custom secret patterns', () => {
+    const result = analyze(
+      [decl('SK_LIVE_KEY'), decl('CUSTOM_SECRET')],
+      [access('SK_LIVE_KEY', true), access('CUSTOM_SECRET', true)],
+      { extraSecretPatterns: ['^CUSTOM_'] },
+    );
+    expect(result.clientExposed).toHaveLength(2);
+    const names = result.clientExposed.map((c) => c.name).sort();
+    expect(names).toEqual(['CUSTOM_SECRET', 'SK_LIVE_KEY']);
+  });
 });
 
 describe('analyze — unauditable', () => {

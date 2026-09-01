@@ -27,10 +27,23 @@ interface AnalysisResult {
   unauditable: EnvAccess[];
 }
 
+interface AnalyzeOptions {
+  extraSecretPatterns?: string[];
+}
+
 export function analyze(
   declarations: EnvDeclaration[],
   accesses: EnvAccess[],
+  options?: AnalyzeOptions,
 ): AnalysisResult {
+  const allSecretPatterns = [
+    ...SECRET_PATTERNS,
+    ...(options?.extraSecretPatterns ?? []).map((p) => ({
+      pattern: new RegExp(p, 'i'),
+      label: p,
+    })),
+  ];
+
   const declaredNames = new Set(declarations.map((d) => d.name));
 
   // Named accesses only (excludes dynamic)
@@ -65,24 +78,25 @@ export function analyze(
     const nameToCheck = hasPublicPrefix
       ? access.name.slice(NEXT_PUBLIC_PREFIX.length)
       : access.name;
-    const secretMatch = SECRET_PATTERNS.find(({ pattern }) =>
+    const secretMatch = allSecretPatterns.find(({ pattern }) =>
       pattern.test(nameToCheck),
     );
 
-    if (!hasPublicPrefix) {
-      clientExposedMap.set(access.name, {
-        name: access.name,
-        file: access.file,
-        line: access.line,
-        reason: 'missing-prefix',
-      });
-    } else if (secretMatch) {
+    // Check secret pattern first (takes precedence), then missing prefix
+    if (secretMatch) {
       clientExposedMap.set(access.name, {
         name: access.name,
         file: access.file,
         line: access.line,
         reason: 'secret-pattern',
         secretPattern: secretMatch.label,
+      });
+    } else if (!hasPublicPrefix) {
+      clientExposedMap.set(access.name, {
+        name: access.name,
+        file: access.file,
+        line: access.line,
+        reason: 'missing-prefix',
       });
     }
   }
