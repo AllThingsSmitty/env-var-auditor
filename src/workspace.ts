@@ -101,6 +101,7 @@ export async function auditWorkspace(
       dir: packageDir,
       rootDir,
       ignorePatterns: options.ignorePatterns,
+      secretPatterns: options.secretPatterns,
     });
     results.push({ packageName, packageDir, result });
   }

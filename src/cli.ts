@@ -4,6 +4,7 @@ import { audit } from './audit.js';
 import { auditWorkspace } from './workspace.js';
 import { formatTable, formatWorkspaceTable } from './output/table.js';
 import { formatJson, formatWorkspaceJson } from './output/json.js';
+import { loadConfig } from './config.js';
 import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
@@ -16,21 +17,29 @@ program
   .description('Static audit for environment variables in Node.js/Next.js projects')
   .version(version)
   .argument('[dir]', 'Project directory to audit (or workspace root with --workspaces)', '.')
-  .option('-f, --format <format>', 'Output format: table | json', 'table')
+  .option('-f, --format <format>', 'Output format: table | json')
   .option('--ignore <pattern>', 'Additional glob patterns to ignore (repeatable)', collect, [])
+  .option('--config <path>', 'Path to config file (defaults to .env-auditorrc.json)')
   .option('--workspaces', 'Audit all packages in a monorepo workspace')
   .action(
-    async (dir: string, opts: { format: string; ignore: string[]; workspaces?: boolean }) => {
+    async (dir: string, opts: { format?: string; ignore: string[]; config?: string; workspaces?: boolean }) => {
       try {
-        if (opts.workspaces) {
-          const workspace = await auditWorkspace({ rootDir: dir, ignorePatterns: opts.ignore });
+        const config = loadConfig(dir, opts.config);
+        const mergedIgnorePatterns = [...(config?.ignore ?? []), ...opts.ignore];
+        const format = opts.format ?? config?.format ?? 'table';
+        const secretPatterns = config?.secretPatterns;
 
-          if (opts.format === 'json') {
+        if (opts.workspaces) {
+          const workspace = await auditWorkspace({
+            rootDir: dir,
+            ignorePatterns: mergedIgnorePatterns,
+            secretPatterns,
+          });
+
+          if (format === 'json') {
             process.stdout.write(formatWorkspaceJson(workspace) + '\n');
           } else {
-            process.stdout.write(
-              formatWorkspaceTable(workspace, process.cwd(), version) + '\n',
-            );
+            process.stdout.write(formatWorkspaceTable(workspace, process.cwd(), version) + '\n');
           }
 
           const worstExitCode = workspace.packages.reduce((code, pkg) => {
@@ -42,9 +51,13 @@ program
 
           process.exit(worstExitCode);
         } else {
-          const result = await audit({ dir, ignorePatterns: opts.ignore });
+          const result = await audit({
+            dir,
+            ignorePatterns: mergedIgnorePatterns,
+            secretPatterns,
+          });
 
-          if (opts.format === 'json') {
+          if (format === 'json') {
             process.stdout.write(formatJson(result) + '\n');
           } else {
             process.stdout.write(formatTable(result, process.cwd(), version) + '\n');

@@ -83,6 +83,41 @@ env-var-auditor . --format json
 env-var-auditor . --ignore "packages/legacy/**"
 ```
 
+## Configuration
+
+Create a `.env-auditorrc.json` file in your project root to codify shared standards for your team:
+
+```json
+{
+  "ignore": ["packages/legacy/**", "**/migrations/**"],
+  "format": "table",
+  "secretPatterns": ["^COMPANY_INTERNAL_", "^ACME_"]
+}
+```
+
+### Config file schema
+
+| Field            | Type                | Description                                                                                                                                 |
+| ---------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ignore`         | `string[]`          | Additional glob patterns to exclude from scanning (unioned with built-in defaults like `node_modules`, `.next`, `dist`, etc.).              |
+| `format`         | `'table' \| 'json'` | Default output format. CLI `--format` flag overrides this.                                                                                  |
+| `secretPatterns` | `string[]`          | Custom regex patterns (case-insensitive) to detect secrets. Combined with built-in patterns (`sk_`, `whsec_`, `*SECRET*`, `*_TOKEN`, etc.). |
+
+### CLI override
+
+CLI flags take precedence over config file values:
+
+```bash
+# Use custom config file path
+env-var-auditor . --config ./custom-config.json
+
+# Union ignore patterns (both config and CLI patterns applied)
+env-var-auditor . --ignore "**/__generated__/**"
+
+# CLI format overrides config
+env-var-auditor . --format json
+```
+
 ## Exit codes
 
 | Code | Meaning                                                   |
@@ -94,11 +129,11 @@ env-var-auditor . --ignore "packages/legacy/**"
 
 Use exit code `1` as a hard CI gate. Ready-to-use GitHub Actions workflows are in [`examples/github-actions/`](examples/github-actions/):
 
-| File | Use case |
-| ---- | -------- |
-| `basic.yml` | Any finding fails the job |
-| `workspace.yml` | Same, with `--workspaces` for monorepos |
-| `strict.yml` | Exit 1 = hard fail, exit 2 = warning annotation, JSON report uploaded as artifact |
+| File            | Use case                                                                          |
+| --------------- | --------------------------------------------------------------------------------- |
+| `basic.yml`     | Any finding fails the job                                                         |
+| `workspace.yml` | Same, with `--workspaces` for monorepos                                           |
+| `strict.yml`    | Exit 1 = hard fail, exit 2 = warning annotation, JSON report uploaded as artifact |
 
 ## What it detects
 

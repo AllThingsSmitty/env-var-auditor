@@ -39,6 +39,7 @@ export interface AuditOptions {
    *  merged as base declarations; package-level files overlay them. */
   rootDir?: string;
   ignorePatterns?: string[];
+  secretPatterns?: string[];
 }
 
 export interface PackageAuditResult {
@@ -54,4 +55,11 @@ export interface WorkspaceAuditResult {
 export interface WorkspaceAuditOptions {
   rootDir: string;
   ignorePatterns?: string[];
+  secretPatterns?: string[];
+}
+
+export interface EnvAuditorConfig {
+  ignore?: string[];
+  format?: 'table' | 'json';
+  secretPatterns?: string[];
 }

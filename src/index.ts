@@ -1,5 +1,6 @@
 export { audit } from './audit.js';
 export { auditWorkspace } from './workspace.js';
+export { loadConfig } from './config.js';
 export type {
   AuditOptions,
   AuditResult,
@@ -10,4 +11,5 @@ export type {
   PackageAuditResult,
   WorkspaceAuditResult,
   WorkspaceAuditOptions,
+  EnvAuditorConfig,
 } from './types.js';
