@@ -1,0 +1,7 @@
+- id: env-var-auditor
+  name: Audit environment variables
+  entry: env-var-auditor
+  language: node
+  stages: [commit]
+  pass_filenames: false
+  always_run: true

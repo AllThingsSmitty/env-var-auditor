@@ -1,0 +1,12 @@
+{
+  "name": "my-project",
+  "version": "1.0.0",
+  "description": "Example project with husky + env-var-auditor",
+  "devDependencies": {
+    "env-var-auditor": "^0.2.1",
+    "husky": "^9.0.0"
+  },
+  "scripts": {
+    "prepare": "husky install"
+  }
+}

@@ -16,6 +16,7 @@
   },
   "files": [
     "dist",
+    ".pre-commit-hooks.yaml",
     "README.md",
     "LICENSE"
   ],
