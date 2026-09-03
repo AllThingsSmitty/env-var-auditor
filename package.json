@@ -1,6 +1,6 @@
 {
   "name": "env-var-auditor",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Static audit for environment variables in Node.js/Next.js projects",
   "type": "module",
   "bin": {
