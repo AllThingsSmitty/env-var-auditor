@@ -62,4 +62,5 @@ export interface EnvAuditorConfig {
   ignore?: string[];
   format?: 'table' | 'json';
   secretPatterns?: string[];
+  baselinePath?: string;
 }

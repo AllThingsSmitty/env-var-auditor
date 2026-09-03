@@ -111,6 +111,37 @@ describe('loadConfig', () => {
       ignore: ['**/dist/**'],
       format: undefined,
       secretPatterns: undefined,
+      baselinePath: undefined,
     });
+  });
+
+  it('parses baselinePath when provided', () => {
+    const configPath = path.join(tempDir, '.env-auditorrc.json');
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        baselinePath: 'baselines/baseline.json',
+      }),
+    );
+
+    const config = loadConfig(tempDir);
+    expect(config).toEqual({
+      ignore: undefined,
+      format: undefined,
+      secretPatterns: undefined,
+      baselinePath: 'baselines/baseline.json',
+    });
+  });
+
+  it('throws when baselinePath is not a string', () => {
+    const configPath = path.join(tempDir, '.env-auditorrc.json');
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        baselinePath: { path: 'should-be-string' },
+      }),
+    );
+
+    expect(() => loadConfig(tempDir)).toThrow(/baselinePath" must be a string/);
   });
 });
