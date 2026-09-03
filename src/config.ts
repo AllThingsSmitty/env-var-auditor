@@ -45,9 +45,16 @@ export function loadConfig(dir: string, explicitPath?: string): EnvAuditorConfig
     );
   }
 
+  if ('baselinePath' in config && typeof config.baselinePath !== 'string') {
+    throw new Error(
+      `Config field "baselinePath" must be a string, got ${typeof config.baselinePath}`,
+    );
+  }
+
   return {
     ignore: config.ignore as string[] | undefined,
     format: config.format as 'table' | 'json' | undefined,
     secretPatterns: config.secretPatterns as string[] | undefined,
+    baselinePath: config.baselinePath as string | undefined,
   };
 }

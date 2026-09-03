@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import Table from 'cli-table3';
 import path from 'path';
 import type { AuditResult, WorkspaceAuditResult } from '../types.js';
+import type { BaselineComparison, PackageBaselineResult } from '../baseline.js';
 
 function relPath(absPath: string, cwd: string): string {
   return path.relative(cwd, absPath).replace(/\\/g, '/');
@@ -103,11 +104,20 @@ function formatFindings(result: AuditResult, cwd: string): string {
   return lines.join('\n');
 }
 
-export function formatTable(result: AuditResult, cwd: string, version: string): string {
-  const header =
+export function formatTable(
+  result: AuditResult,
+  cwd: string,
+  version: string,
+  baselineMessage?: string,
+): string {
+  let header =
     chalk.bold(`env-var-auditor`) +
     `  v${version}  ·  ` +
     chalk.dim(`${result.scannedFiles} files  ·  ${result.scannedEnvFiles} env files`);
+
+  if (baselineMessage) {
+    header += `\n${chalk.dim(baselineMessage)}`;
+  }
 
   return [header, '', formatFindings(result, cwd)].join('\n');
 }
@@ -169,6 +179,143 @@ export function formatWorkspaceTable(
     if (allClientExposed > 0) parts.push(chalk.red(`${allClientExposed} client-exposed`));
     if (allOther > 0) parts.push(chalk.yellow(`${allOther} other findings`));
     lines.push(`Workspace total: ${parts.join(', ')}`);
+  }
+
+  return lines.join('\n');
+}
+
+export function formatBaselineTable(
+  result: AuditResult,
+  comparison: BaselineComparison,
+  cwd: string,
+  version: string,
+  baseline: { timestamp: string },
+): string {
+  const fixedCount = comparison.fixedFindings.clientExposed.length +
+    comparison.fixedFindings.readButUndeclared.length +
+    comparison.fixedFindings.declaredButUnread.length;
+
+  const filteredResult: AuditResult = {
+    ...result,
+    clientExposed: result.clientExposed.filter((f) =>
+      comparison.newFindings.clientExposed.includes(f.name),
+    ),
+    readButUndeclared: result.readButUndeclared.filter((f) =>
+      comparison.newFindings.readButUndeclared.includes(f.name ?? ''),
+    ),
+    declaredButUnread: result.declaredButUnread.filter((f) =>
+      comparison.newFindings.declaredButUnread.includes(f.name),
+    ),
+  };
+
+  let header =
+    chalk.bold(`env-var-auditor`) +
+    `  v${version}  ·  ` +
+    chalk.dim(`${result.scannedFiles} files  ·  ${result.scannedEnvFiles} env files`);
+
+  const baselineMsg = `Baseline from ${baseline.timestamp}${fixedCount > 0 ? ` · ${fixedCount} fixed` : ''}`;
+  header += `\n${chalk.dim(baselineMsg)}`;
+
+  return [header, '', formatFindings(filteredResult, cwd)].join('\n');
+}
+
+export function formatWorkspaceBaselineTable(
+  packages: PackageBaselineResult[],
+  cwd: string,
+  version: string,
+): string {
+  const lines: string[] = [];
+
+  const totalFiles = packages.reduce((n, p) => n + p.result.scannedFiles, 0);
+  const totalEnvFiles = packages.reduce((n, p) => n + p.result.scannedEnvFiles, 0);
+
+  lines.push(
+    chalk.bold(`env-var-auditor`) +
+      `  v${version}  ·  workspace  ·  ` +
+      chalk.dim(
+        `${packages.length} packages  ·  ${totalFiles} files  ·  ${totalEnvFiles} env files`,
+      ),
+  );
+  lines.push('');
+
+  for (const pkg of packages) {
+    const newClientExposed = pkg.result.clientExposed.filter((f) =>
+      pkg.comparison.newFindings.clientExposed.includes(f.name),
+    );
+    const newReadUndeclared = pkg.result.readButUndeclared.filter((f) =>
+      pkg.comparison.newFindings.readButUndeclared.includes(f.name ?? ''),
+    );
+    const newDeclaredUnread = pkg.result.declaredButUnread.filter((f) =>
+      pkg.comparison.newFindings.declaredButUnread.includes(f.name),
+    );
+
+    const filteredResult: AuditResult = {
+      ...pkg.result,
+      clientExposed: newClientExposed,
+      readButUndeclared: newReadUndeclared,
+      declaredButUnread: newDeclaredUnread,
+    };
+
+    const fixedCount = pkg.comparison.fixedFindings.clientExposed.length +
+      pkg.comparison.fixedFindings.readButUndeclared.length +
+      pkg.comparison.fixedFindings.declaredButUnread.length;
+
+    let headerLine =
+      chalk.bold(`▸ ${pkg.packageName}`) +
+      chalk.dim(`  ${relPath(pkg.packageDir, cwd)}`);
+
+    if (pkg.baselineMissing) {
+      headerLine += `  ${chalk.yellow('⚠ no baseline found')}`;
+    }
+    if (fixedCount > 0) {
+      headerLine += chalk.dim(`  · ${fixedCount} fixed`);
+    }
+
+    lines.push(headerLine);
+
+    const pkgFindings =
+      filteredResult.clientExposed.length +
+      filteredResult.readButUndeclared.length +
+      filteredResult.declaredButUnread.length;
+
+    if (pkgFindings === 0 && filteredResult.unauditable.length === 0) {
+      if (pkg.baselineMissing) {
+        lines.push(chalk.dim('  (no findings yet)'));
+      } else {
+        lines.push(chalk.green('  No new findings'));
+      }
+    } else {
+      lines.push(formatFindings(filteredResult, cwd));
+    }
+
+    lines.push('');
+  }
+
+  // Workspace-level summary
+  const allNewClientExposed = packages.reduce((n, p) => {
+    return n + p.comparison.newFindings.clientExposed.length;
+  }, 0);
+  const allNewOther = packages.reduce((n, p) => {
+    return n + p.comparison.newFindings.readButUndeclared.length +
+      p.comparison.newFindings.declaredButUnread.length;
+  }, 0);
+  const allFixedTotal = packages.reduce((n, p) => {
+    return n + p.comparison.fixedFindings.clientExposed.length +
+      p.comparison.fixedFindings.readButUndeclared.length +
+      p.comparison.fixedFindings.declaredButUnread.length;
+  }, 0);
+
+  if (allNewClientExposed === 0 && allNewOther === 0) {
+    lines.push(chalk.green('Workspace clean — no new findings across all packages.'));
+  } else {
+    const parts: string[] = [];
+    if (allNewClientExposed > 0) parts.push(chalk.red(`${allNewClientExposed} new client-exposed`));
+    if (allNewOther > 0) parts.push(chalk.yellow(`${allNewOther} new other findings`));
+    lines.push(`Workspace total: ${parts.join(', ')}`);
+  }
+
+  if (allFixedTotal > 0) {
+    lines.push(chalk.green(`  · ${allFixedTotal} fixed since baseline`));
   }
 
   return lines.join('\n');
