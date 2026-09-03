@@ -40,6 +40,7 @@ export interface AuditOptions {
   rootDir?: string;
   ignorePatterns?: string[];
   secretPatterns?: string[];
+  useCache?: boolean;
 }
 
 export interface PackageAuditResult {
@@ -56,6 +57,7 @@ export interface WorkspaceAuditOptions {
   rootDir: string;
   ignorePatterns?: string[];
   secretPatterns?: string[];
+  useCache?: boolean;
 }
 
 export interface EnvAuditorConfig {

@@ -44,6 +44,7 @@ program
   .option('--save-baseline', 'Save current findings as baseline')
   .option('--baseline [path]', 'Compare against baseline (auto-finds .env-auditor-baseline.json if no path given)')
   .option('--show-all', 'Show all findings (new + existing + fixed) when using --baseline')
+  .option('--cache', 'Cache AST parsing results to speed up repeat audits (writes .env-auditor-cache.json)')
   .action(
     async (
       dir: string,
@@ -55,6 +56,7 @@ program
         saveBaseline?: boolean;
         baseline?: string | boolean;
         showAll?: boolean;
+        cache?: boolean;
       },
     ) => {
       try {
@@ -68,6 +70,7 @@ program
             rootDir: dir,
             ignorePatterns: mergedIgnorePatterns,
             secretPatterns,
+            useCache: opts.cache,
           });
 
           // Handle --workspaces --save-baseline
@@ -161,6 +164,7 @@ program
             dir,
             ignorePatterns: mergedIgnorePatterns,
             secretPatterns,
+            useCache: opts.cache,
           });
 
           // Handle --save-baseline
