@@ -4,6 +4,8 @@ Static analysis CLI that audits environment variable usage in Node.js and Next.j
 
 [![CI](https://github.com/AllThingsSmitty/env-var-auditor/actions/workflows/ci.yml/badge.svg)](https://github.com/AllThingsSmitty/env-var-auditor/actions/workflows/ci.yml)
 
+**[→ Quick start](docs/GETTING_STARTED.md)** | [Installation](#installation) | [Configuration](#configuration)
+
 ## Why
 
 Runtime tools like `t3-env` and `envalid` only validate values when the process boots. They cannot tell you:
