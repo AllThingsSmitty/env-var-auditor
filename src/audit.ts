@@ -1,10 +1,15 @@
 import { glob } from 'glob';
 import fs from 'fs';
 import path from 'path';
+import { createRequire } from 'module';
 import { parseEnvFile } from './parsers/env-file.js';
 import { parseCodeFiles } from './parsers/code.js';
 import { analyze } from './analyzers/index.js';
+import { loadCache, saveCache, resolveAccesses, getDefaultCachePath } from './cache.js';
 import type { AuditOptions, AuditResult, EnvDeclaration } from './types.js';
+
+const require = createRequire(import.meta.url);
+const { version } = require('../package.json') as { version: string };
 
 const ENV_FILE_NAMES = [
   '.env',
@@ -79,12 +84,22 @@ export async function audit(options: AuditOptions): Promise<AuditResult> {
   });
 
   // 3. Parse source files for process.env accesses
-  const fileContents = sourceFiles.map((f) => ({
-    path: f,
-    content: fs.readFileSync(f, 'utf-8'),
-  }));
+  let allAccesses;
+  let cacheEntries;
 
-  const allAccesses = parseCodeFiles(fileContents);
+  if (options.useCache) {
+    const cachePath = getDefaultCachePath(dir);
+    const cache = loadCache(cachePath);
+    const result = resolveAccesses(sourceFiles, cache, parseCodeFiles);
+    allAccesses = result.accesses;
+    cacheEntries = result.entries;
+  } else {
+    const fileContents = sourceFiles.map((f) => ({
+      path: f,
+      content: fs.readFileSync(f, 'utf-8'),
+    }));
+    allAccesses = parseCodeFiles(fileContents);
+  }
 
   // 4. Cross-reference
   const analysis = analyze(allDeclarations, allAccesses, {
@@ -102,10 +117,18 @@ export async function audit(options: AuditOptions): Promise<AuditResult> {
       })
     : analysis.declaredButUnread;
 
-  return {
+  const result = {
     scannedFiles: sourceFiles.length,
     scannedEnvFiles: foundEnvFiles.length,
     ...analysis,
     declaredButUnread,
   };
+
+  // Save cache if it was used
+  if (options.useCache && cacheEntries) {
+    const cachePath = getDefaultCachePath(dir);
+    saveCache(cachePath, { version, entries: cacheEntries });
+  }
+
+  return result;
 }
