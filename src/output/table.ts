@@ -190,23 +190,55 @@ export function formatBaselineTable(
   cwd: string,
   version: string,
   baseline: { timestamp: string },
+  showAll?: boolean,
 ): string {
   const fixedCount = comparison.fixedFindings.clientExposed.length +
     comparison.fixedFindings.readButUndeclared.length +
     comparison.fixedFindings.declaredButUnread.length;
 
-  const filteredResult: AuditResult = {
-    ...result,
-    clientExposed: result.clientExposed.filter((f) =>
+  let displayResult: AuditResult;
+
+  if (showAll) {
+    const existingClientExposed = result.clientExposed.filter((f) =>
+      comparison.baselineFindings.clientExposed.includes(f.name),
+    );
+    const existingReadUndeclared = result.readButUndeclared.filter((f) =>
+      comparison.baselineFindings.readButUndeclared.includes(f.name ?? ''),
+    );
+    const existingDeclaredUnread = result.declaredButUnread.filter((f) =>
+      comparison.baselineFindings.declaredButUnread.includes(f.name),
+    );
+
+    const newClientExposed = result.clientExposed.filter((f) =>
       comparison.newFindings.clientExposed.includes(f.name),
-    ),
-    readButUndeclared: result.readButUndeclared.filter((f) =>
+    );
+    const newReadUndeclared = result.readButUndeclared.filter((f) =>
       comparison.newFindings.readButUndeclared.includes(f.name ?? ''),
-    ),
-    declaredButUnread: result.declaredButUnread.filter((f) =>
+    );
+    const newDeclaredUnread = result.declaredButUnread.filter((f) =>
       comparison.newFindings.declaredButUnread.includes(f.name),
-    ),
-  };
+    );
+
+    displayResult = {
+      ...result,
+      clientExposed: [...newClientExposed, ...existingClientExposed],
+      readButUndeclared: [...newReadUndeclared, ...existingReadUndeclared],
+      declaredButUnread: [...newDeclaredUnread, ...existingDeclaredUnread],
+    };
+  } else {
+    displayResult = {
+      ...result,
+      clientExposed: result.clientExposed.filter((f) =>
+        comparison.newFindings.clientExposed.includes(f.name),
+      ),
+      readButUndeclared: result.readButUndeclared.filter((f) =>
+        comparison.newFindings.readButUndeclared.includes(f.name ?? ''),
+      ),
+      declaredButUnread: result.declaredButUnread.filter((f) =>
+        comparison.newFindings.declaredButUnread.includes(f.name),
+      ),
+    };
+  }
 
   let header =
     chalk.bold(`env-var-auditor`) +
@@ -215,14 +247,18 @@ export function formatBaselineTable(
 
   const baselineMsg = `Baseline from ${baseline.timestamp}${fixedCount > 0 ? ` · ${fixedCount} fixed` : ''}`;
   header += `\n${chalk.dim(baselineMsg)}`;
+  if (showAll) {
+    header += ` ${chalk.dim('(showing all findings)')}`;
+  }
 
-  return [header, '', formatFindings(filteredResult, cwd)].join('\n');
+  return [header, '', formatFindings(displayResult, cwd)].join('\n');
 }
 
 export function formatWorkspaceBaselineTable(
   packages: PackageBaselineResult[],
   cwd: string,
   version: string,
+  showAll?: boolean,
 ): string {
   const lines: string[] = [];
 
@@ -249,11 +285,31 @@ export function formatWorkspaceBaselineTable(
       pkg.comparison.newFindings.declaredButUnread.includes(f.name),
     );
 
+    const existingClientExposed = pkg.result.clientExposed.filter((f) =>
+      pkg.comparison.baselineFindings.clientExposed.includes(f.name),
+    );
+    const existingReadUndeclared = pkg.result.readButUndeclared.filter((f) =>
+      pkg.comparison.baselineFindings.readButUndeclared.includes(f.name ?? ''),
+    );
+    const existingDeclaredUnread = pkg.result.declaredButUnread.filter((f) =>
+      pkg.comparison.baselineFindings.declaredButUnread.includes(f.name),
+    );
+
+    let allClientExposed = newClientExposed;
+    let allReadUndeclared = newReadUndeclared;
+    let allDeclaredUnread = newDeclaredUnread;
+
+    if (showAll) {
+      allClientExposed = [...newClientExposed, ...existingClientExposed];
+      allReadUndeclared = [...newReadUndeclared, ...existingReadUndeclared];
+      allDeclaredUnread = [...newDeclaredUnread, ...existingDeclaredUnread];
+    }
+
     const filteredResult: AuditResult = {
       ...pkg.result,
-      clientExposed: newClientExposed,
-      readButUndeclared: newReadUndeclared,
-      declaredButUnread: newDeclaredUnread,
+      clientExposed: allClientExposed,
+      readButUndeclared: allReadUndeclared,
+      declaredButUnread: allDeclaredUnread,
     };
 
     const fixedCount = pkg.comparison.fixedFindings.clientExposed.length +
@@ -281,6 +337,8 @@ export function formatWorkspaceBaselineTable(
     if (pkgFindings === 0 && filteredResult.unauditable.length === 0) {
       if (pkg.baselineMissing) {
         lines.push(chalk.dim('  (no findings yet)'));
+      } else if (showAll) {
+        lines.push(chalk.green('  No findings'));
       } else {
         lines.push(chalk.green('  No new findings'));
       }
@@ -299,19 +357,43 @@ export function formatWorkspaceBaselineTable(
     return n + p.comparison.newFindings.readButUndeclared.length +
       p.comparison.newFindings.declaredButUnread.length;
   }, 0);
+  const allExistingClientExposed = showAll ? packages.reduce((n, p) => {
+    return n + p.comparison.baselineFindings.clientExposed.length;
+  }, 0) : 0;
+  const allExistingOther = showAll ? packages.reduce((n, p) => {
+    return n + p.comparison.baselineFindings.readButUndeclared.length +
+      p.comparison.baselineFindings.declaredButUnread.length;
+  }, 0) : 0;
   const allFixedTotal = packages.reduce((n, p) => {
     return n + p.comparison.fixedFindings.clientExposed.length +
       p.comparison.fixedFindings.readButUndeclared.length +
       p.comparison.fixedFindings.declaredButUnread.length;
   }, 0);
 
-  if (allNewClientExposed === 0 && allNewOther === 0) {
-    lines.push(chalk.green('Workspace clean — no new findings across all packages.'));
+  if (!showAll) {
+    if (allNewClientExposed === 0 && allNewOther === 0) {
+      lines.push(chalk.green('Workspace clean — no new findings across all packages.'));
+    } else {
+      const parts: string[] = [];
+      if (allNewClientExposed > 0) parts.push(chalk.red(`${allNewClientExposed} new client-exposed`));
+      if (allNewOther > 0) parts.push(chalk.yellow(`${allNewOther} new other findings`));
+      lines.push(`Workspace total: ${parts.join(', ')}`);
+    }
   } else {
-    const parts: string[] = [];
-    if (allNewClientExposed > 0) parts.push(chalk.red(`${allNewClientExposed} new client-exposed`));
-    if (allNewOther > 0) parts.push(chalk.yellow(`${allNewOther} new other findings`));
-    lines.push(`Workspace total: ${parts.join(', ')}`);
+    const totalClientExposed = allNewClientExposed + allExistingClientExposed;
+    const totalOther = allNewOther + allExistingOther;
+
+    if (totalClientExposed === 0 && totalOther === 0) {
+      lines.push(chalk.green('Workspace clean — no findings across all packages.'));
+    } else {
+      const parts: string[] = [];
+      if (totalClientExposed > 0) parts.push(chalk.red(`${totalClientExposed} client-exposed`));
+      if (totalOther > 0) parts.push(chalk.yellow(`${totalOther} other findings`));
+      lines.push(`Workspace total: ${parts.join(', ')}`);
+      if (allNewClientExposed > 0 || allNewOther > 0) {
+        lines.push(chalk.dim(`  · ${allNewClientExposed + allNewOther} new since last baseline`));
+      }
+    }
   }
 
   if (allFixedTotal > 0) {

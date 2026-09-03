@@ -43,6 +43,7 @@ program
   .option('--workspaces', 'Audit all packages in a monorepo workspace')
   .option('--save-baseline', 'Save current findings as baseline')
   .option('--baseline [path]', 'Compare against baseline (auto-finds .env-auditor-baseline.json if no path given)')
+  .option('--show-all', 'Show all findings (new + existing + fixed) when using --baseline')
   .action(
     async (
       dir: string,
@@ -53,6 +54,7 @@ program
         workspaces?: boolean;
         saveBaseline?: boolean;
         baseline?: string | boolean;
+        showAll?: boolean;
       },
     ) => {
       try {
@@ -122,9 +124,9 @@ program
             }
 
             if (format === 'json') {
-              process.stdout.write(formatWorkspaceBaselineJson(baselineResults) + '\n');
+              process.stdout.write(formatWorkspaceBaselineJson(baselineResults, opts.showAll) + '\n');
             } else {
-              process.stdout.write(formatWorkspaceBaselineTable(baselineResults, process.cwd(), version) + '\n');
+              process.stdout.write(formatWorkspaceBaselineTable(baselineResults, process.cwd(), version, opts.showAll) + '\n');
             }
 
             const worstExitCode = baselineResults.reduce((code, pkg) => {
@@ -184,10 +186,10 @@ program
             const comparison = compareFindings(result, baseline);
 
             if (format === 'json') {
-              process.stdout.write(formatBaselineJson(result, comparison, baseline) + '\n');
+              process.stdout.write(formatBaselineJson(result, comparison, baseline, opts.showAll) + '\n');
             } else {
               process.stdout.write(
-                formatBaselineTable(result, comparison, process.cwd(), version, baseline) + '\n',
+                formatBaselineTable(result, comparison, process.cwd(), version, baseline, opts.showAll) + '\n',
               );
             }
 

@@ -49,6 +49,7 @@ export function formatBaselineJson(
   result: AuditResult,
   comparison: BaselineComparison,
   baseline: BaselineData,
+  showAll?: boolean,
 ): string {
   const newClientExposed = result.clientExposed.filter((f) =>
     comparison.newFindings.clientExposed.includes(f.name),
@@ -69,6 +70,16 @@ export function formatBaselineJson(
   const existingDeclaredUnread = result.declaredButUnread.filter((f) =>
     comparison.baselineFindings.declaredButUnread.includes(f.name),
   );
+
+  let allClientExposed = newClientExposed;
+  let allReadUndeclared = newReadUndeclared;
+  let allDeclaredUnread = newDeclaredUnread;
+
+  if (showAll) {
+    allClientExposed = [...newClientExposed, ...existingClientExposed];
+    allReadUndeclared = [...newReadUndeclared, ...existingReadUndeclared];
+    allDeclaredUnread = [...newDeclaredUnread, ...existingDeclaredUnread];
+  }
 
   const output: Record<string, unknown> = {
     baseline: {
@@ -92,27 +103,33 @@ export function formatBaselineJson(
         declaredButUnread: comparison.fixedFindings.declaredButUnread.length,
       },
     },
-    new: {
+    clientExposed: allClientExposed,
+    readButUndeclared: allReadUndeclared,
+    declaredButUnread: allDeclaredUnread,
+  };
+
+  if (!showAll) {
+    output.new = {
       clientExposed: newClientExposed,
       readButUndeclared: newReadUndeclared,
       declaredButUnread: newDeclaredUnread,
-    },
-    existing: {
+    };
+    output.existing = {
       clientExposed: existingClientExposed,
       readButUndeclared: existingReadUndeclared,
       declaredButUnread: existingDeclaredUnread,
-    },
-    fixed: {
+    };
+    output.fixed = {
       clientExposed: comparison.fixedFindings.clientExposed,
       readButUndeclared: comparison.fixedFindings.readButUndeclared,
       declaredButUnread: comparison.fixedFindings.declaredButUnread,
-    },
-  };
+    };
+  }
 
   return JSON.stringify(output, null, 2);
 }
 
-export function formatWorkspaceBaselineJson(packages: PackageBaselineResult[]): string {
+export function formatWorkspaceBaselineJson(packages: PackageBaselineResult[], showAll?: boolean): string {
   const formatted = packages.map((pkg) => {
     const newClientExposed = pkg.result.clientExposed.filter((f) =>
       pkg.comparison.newFindings.clientExposed.includes(f.name),
@@ -134,7 +151,17 @@ export function formatWorkspaceBaselineJson(packages: PackageBaselineResult[]): 
       pkg.comparison.baselineFindings.declaredButUnread.includes(f.name),
     );
 
-    return {
+    let allClientExposed = newClientExposed;
+    let allReadUndeclared = newReadUndeclared;
+    let allDeclaredUnread = newDeclaredUnread;
+
+    if (showAll) {
+      allClientExposed = [...newClientExposed, ...existingClientExposed];
+      allReadUndeclared = [...newReadUndeclared, ...existingReadUndeclared];
+      allDeclaredUnread = [...newDeclaredUnread, ...existingDeclaredUnread];
+    }
+
+    const item: Record<string, unknown> = {
       packageName: pkg.packageName,
       packageDir: pkg.packageDir,
       baselineMissing: pkg.baselineMissing,
@@ -159,22 +186,30 @@ export function formatWorkspaceBaselineJson(packages: PackageBaselineResult[]): 
           declaredButUnread: pkg.comparison.fixedFindings.declaredButUnread.length,
         },
       },
-      new: {
+      clientExposed: allClientExposed,
+      readButUndeclared: allReadUndeclared,
+      declaredButUnread: allDeclaredUnread,
+    };
+
+    if (!showAll) {
+      item.new = {
         clientExposed: newClientExposed,
         readButUndeclared: newReadUndeclared,
         declaredButUnread: newDeclaredUnread,
-      },
-      existing: {
+      };
+      item.existing = {
         clientExposed: existingClientExposed,
         readButUndeclared: existingReadUndeclared,
         declaredButUnread: existingDeclaredUnread,
-      },
-      fixed: {
+      };
+      item.fixed = {
         clientExposed: pkg.comparison.fixedFindings.clientExposed,
         readButUndeclared: pkg.comparison.fixedFindings.readButUndeclared,
         declaredButUnread: pkg.comparison.fixedFindings.declaredButUnread,
-      },
-    };
+      };
+    }
+
+    return item;
   });
 
   return JSON.stringify({ packages: formatted }, null, 2);
