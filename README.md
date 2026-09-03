@@ -120,6 +120,46 @@ env-var-auditor . --ignore "**/__generated__/**"
 env-var-auditor . --format json
 ```
 
+## Pre-commit hooks
+
+Automatically run env-var-auditor on every commit using [pre-commit](https://pre-commit.com) or [husky](https://typicode.github.io/husky/).
+
+### Using pre-commit
+
+Add to `.pre-commit-config.yaml`:
+
+```yaml
+repos:
+  - repo: https://github.com/AllThingsSmitty/env-var-auditor
+    rev: v0.2.1
+    hooks:
+      - id: env-var-auditor
+```
+
+Then install:
+
+```bash
+pre-commit install
+```
+
+### Using husky
+
+Install and configure:
+
+```bash
+npm install --save-dev husky env-var-auditor
+npx husky install
+npx husky add .husky/pre-commit "env-var-auditor ."
+```
+
+For monorepos:
+
+```bash
+npx husky add .husky/pre-commit "env-var-auditor . --workspaces"
+```
+
+See [`examples/husky/`](examples/husky/) for full examples.
+
 ## Exit codes
 
 | Code | Meaning                                                   |
