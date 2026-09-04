@@ -1,0 +1,61 @@
+# Strict env-var-auditor integration with differentiated exit code handling.
+#
+# Exit 1 (client-exposed secret)  → hard fail — blocks the pipeline.
+# Exit 2 (undeclared / unused)    → soft warn — job succeeds but logs a warning.
+# Exit 3 (tool error)             → hard fail.
+#
+# JSON output is captured as an artifact for further inspection.
+#
+# Usage: Copy this as .gitlab-ci.yml in your project root, or reference it
+# as an include in your existing .gitlab-ci.yml
+
+stages:
+  - audit
+
+audit:env-var:strict:
+  stage: audit
+  image: node:20
+  script:
+    - npm install -g env-var-auditor@0.4.0
+    # Capture the audit result as JSON and save the exit code.
+    - set +e  # Don't exit on error yet
+    - env-var-auditor . --format json > audit-results.json
+    - EXIT_CODE=$?
+    - set -e  # Re-enable exit on error
+
+    # Hard fail: client-exposed secret found (exit 1).
+    - |
+      if [ "$EXIT_CODE" -eq 1 ]; then
+        echo "❌ ERROR: Client-exposed secrets detected."
+        cat audit-results.json
+        echo "Review the audit output above and move server-only vars out of NEXT_PUBLIC_ / client bundles."
+        exit 1
+      fi
+
+    # Soft warn: undeclared or unused vars found (exit 2).
+    - |
+      if [ "$EXIT_CODE" -eq 2 ]; then
+        echo "⚠️  WARNING: Undeclared or unused env vars detected."
+        cat audit-results.json
+        echo "Review the audit output above. This does not block the pipeline."
+        exit 0  # Soft warning — job succeeds
+      fi
+
+    # Hard fail: tool itself errored (exit 3).
+    - |
+      if [ "$EXIT_CODE" -eq 3 ]; then
+        echo "❌ ERROR: env-var-auditor encountered an error."
+        echo "Check that the target directory is valid and accessible."
+        exit 3
+      fi
+
+  artifacts:
+    name: env-audit-report
+    paths:
+      - audit-results.json
+    expire_in: 7 days
+    when: always
+
+  allow_failure: false
+  only:
+    - branches

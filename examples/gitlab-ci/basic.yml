@@ -1,0 +1,24 @@
+# Basic env-var-auditor integration for a single Next.js / Node.js project.
+#
+# Any findings cause the job to fail with a non-zero exit code:
+#   Exit 1 — client-exposed secret detected
+#   Exit 2 — undeclared or unused env var detected
+#   Exit 3 — tool error (bad path, parse failure)
+#
+# Usage: Copy this as .gitlab-ci.yml in your project root, or reference it
+# as an include in your existing .gitlab-ci.yml
+
+stages:
+  - audit
+
+audit:env-var:
+  stage: audit
+  image: node:20
+  script:
+    # Pin the version to keep CI reproducible.
+    - npm install -g env-var-auditor@0.4.0
+    # Audit the project root. Replace '.' with a subdirectory if needed.
+    - env-var-auditor .
+  allow_failure: false
+  only:
+    - branches
