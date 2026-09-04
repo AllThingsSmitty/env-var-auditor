@@ -1,0 +1,25 @@
+# Env-var-auditor integration for a pnpm monorepo / workspace.
+#
+# --workspaces discovers every package listed in pnpm-workspace.yaml
+# and audits each one, inheriting root .env* declarations.
+# The exit code reflects the worst finding across all packages.
+#
+# Usage: Copy this as .gitlab-ci.yml in your project root, or reference it
+# as an include in your existing .gitlab-ci.yml
+
+stages:
+  - audit
+
+audit:env-var:workspace:
+  stage: audit
+  image: node:20
+  before_script:
+    # Install pnpm if not already available in the image
+    - npm install -g pnpm
+  script:
+    - npm install -g env-var-auditor@0.4.0
+    # Run from the monorepo root so the tool can resolve pnpm-workspace.yaml.
+    - env-var-auditor . --workspaces
+  allow_failure: false
+  only:
+    - branches

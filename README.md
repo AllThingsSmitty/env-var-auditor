@@ -171,13 +171,29 @@ See [`examples/husky/`](examples/husky/) for full examples.
 | `2`  | Other findings only (undeclared or unused vars)           |
 | `3`  | Unexpected error                                          |
 
-Use exit code `1` as a hard CI gate. Ready-to-use GitHub Actions workflows are in [`examples/github-actions/`](examples/github-actions/):
+Use exit code `1` as a hard CI gate.
+
+### GitHub Actions
+
+Ready-to-use workflows are in [`examples/github-actions/`](examples/github-actions/):
 
 | File            | Use case                                                                          |
 | --------------- | --------------------------------------------------------------------------------- |
 | `basic.yml`     | Any finding fails the job                                                         |
 | `workspace.yml` | Same, with `--workspaces` for monorepos                                           |
 | `strict.yml`    | Exit 1 = hard fail, exit 2 = warning annotation, JSON report uploaded as artifact |
+
+### GitLab CI/CD
+
+Ready-to-use pipelines are in [`examples/gitlab-ci/`](examples/gitlab-ci/):
+
+| File            | Use case                                                                     |
+| --------------- | ---------------------------------------------------------------------------- |
+| `basic.yml`     | Any finding fails the job                                                    |
+| `workspace.yml` | Same, with `--workspaces` for monorepos                                      |
+| `strict.yml`    | Exit 1 = hard fail, exit 2 = soft warn, JSON report saved as job artifact   |
+
+See [GitLab CI/CD Integration](docs/GITLAB_CI.md) for detailed setup and customization.
 
 ## What it detects
 

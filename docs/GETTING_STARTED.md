@@ -190,6 +190,8 @@ See [Configuration](../README.md#configuration) for all options.
 
 ### Set up CI/CD
 
+**GitHub Actions:**
+
 Add to your GitHub Actions workflow:
 
 ```yaml
@@ -203,6 +205,21 @@ For monorepos with pnpm workspaces:
 ```
 
 See [`examples/github-actions/`](../examples/github-actions/) for ready-to-use workflows.
+
+**GitLab CI/CD:**
+
+Add to your `.gitlab-ci.yml`:
+
+```yaml
+audit:env-var:
+  stage: audit
+  image: node:20
+  script:
+    - npm install -g env-var-auditor
+    - env-var-auditor .
+```
+
+See [`examples/gitlab-ci/`](../examples/gitlab-ci/) for ready-to-use pipelines and [GitLab CI/CD Integration](GITLAB_CI.md) for detailed setup.
 
 ## 6. Common questions
 
