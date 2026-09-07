@@ -25,6 +25,8 @@ import {
   saveWorkspaceBaselines,
   compareWorkspaceBaselines,
 } from './baseline.js';
+import { sendAuditToSlack } from './slack.js';
+import type { AuditResult, WorkspaceAuditResult } from './types.js';
 import { createRequire } from 'module';
 
 const require = createRequire(import.meta.url);
@@ -45,6 +47,7 @@ program
   .option('--baseline [path]', 'Compare against baseline (auto-finds .env-auditor-baseline.json if no path given)')
   .option('--show-all', 'Show all findings (new + existing + fixed) when using --baseline')
   .option('--cache', 'Cache AST parsing results to speed up repeat audits (writes .env-auditor-cache.json)')
+  .option('--slack-webhook <url>', 'Slack webhook URL to send audit results (env: ENV_VAR_AUDITOR_SLACK_WEBHOOK)')
   .action(
     async (
       dir: string,
@@ -57,6 +60,7 @@ program
         baseline?: string | boolean;
         showAll?: boolean;
         cache?: boolean;
+        slackWebhook?: string;
       },
     ) => {
       try {
@@ -64,6 +68,8 @@ program
         const mergedIgnorePatterns = [...(config?.ignore ?? []), ...opts.ignore];
         const format = opts.format ?? config?.format ?? 'table';
         const secretPatterns = config?.secretPatterns;
+        const slackWebhook =
+          opts.slackWebhook ?? config?.slackWebhook ?? process.env.ENV_VAR_AUDITOR_SLACK_WEBHOOK;
 
         if (opts.workspaces) {
           const workspace = await auditWorkspace({
@@ -132,6 +138,8 @@ program
               process.stdout.write(formatWorkspaceBaselineTable(baselineResults, process.cwd(), version, opts.showAll) + '\n');
             }
 
+            await sendToSlackIfConfigured(slackWebhook, workspace);
+
             const worstExitCode = baselineResults.reduce((code, pkg) => {
               if (pkg.comparison.newFindings.clientExposed.length > 0) return Math.max(code, 1);
               const other =
@@ -150,6 +158,8 @@ program
           } else {
             process.stdout.write(formatWorkspaceTable(workspace, process.cwd(), version) + '\n');
           }
+
+          await sendToSlackIfConfigured(slackWebhook, workspace);
 
           const worstExitCode = workspace.packages.reduce((code, pkg) => {
             if (pkg.result.clientExposed.length > 0) return Math.max(code, 1);
@@ -197,6 +207,8 @@ program
               );
             }
 
+            await sendToSlackIfConfigured(slackWebhook, result, dir);
+
             // Exit based on NEW findings only
             if (comparison.newFindings.clientExposed.length > 0) {
               process.exit(1);
@@ -217,6 +229,8 @@ program
             process.stdout.write(formatTable(result, process.cwd(), version) + '\n');
           }
 
+          await sendToSlackIfConfigured(slackWebhook, result, dir);
+
           if (result.clientExposed.length > 0) {
             process.exit(1);
           }
@@ -233,6 +247,24 @@ program
       }
     },
   );
+
+async function sendToSlackIfConfigured(
+  slackWebhook: string | undefined,
+  result: AuditResult | WorkspaceAuditResult,
+  projectPath?: string,
+): Promise<void> {
+  if (!slackWebhook) {
+    return;
+  }
+
+  try {
+    await sendAuditToSlack(result, slackWebhook, projectPath);
+  } catch (err) {
+    process.stderr.write(
+      `⚠ Failed to send to Slack: ${err instanceof Error ? err.message : String(err)}\n`,
+    );
+  }
+}
 
 function collect(value: string, previous: string[]): string[] {
   return previous.concat(value);

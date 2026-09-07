@@ -106,6 +106,7 @@ Create a `.env-auditorrc.json` file in your project root to codify shared standa
 | `ignore`         | `string[]`          | Additional glob patterns to exclude from scanning (unioned with built-in defaults like `node_modules`, `.next`, `dist`, etc.).              |
 | `format`         | `'table' \| 'json'` | Default output format. CLI `--format` flag overrides this.                                                                                  |
 | `secretPatterns` | `string[]`          | Custom regex patterns (case-insensitive) to detect secrets. Combined with built-in patterns (`sk_`, `whsec_`, `*SECRET*`, `*_TOKEN`, etc.). |
+| `slackWebhook`   | `string`            | Slack incoming webhook URL for audit result notifications. Can also be set via `ENV_VAR_AUDITOR_SLACK_WEBHOOK` env var or `--slack-webhook` CLI flag. |
 
 ### CLI override
 
@@ -194,6 +195,28 @@ Ready-to-use pipelines are in [`examples/gitlab-ci/`](examples/gitlab-ci/):
 | `strict.yml`    | Exit 1 = hard fail, exit 2 = soft warn, JSON report saved as job artifact   |
 
 See [GitLab CI/CD Integration](docs/GITLAB_CI.md) for detailed setup and customization.
+
+## Slack notifications
+
+Notify your team immediately when environment variable issues are detected:
+
+```bash
+# Send audit results to Slack
+env-var-auditor . --slack-webhook https://hooks.slack.com/services/T123/B456/xyz
+```
+
+Or configure in `.env-auditorrc.json`:
+
+```json
+{
+  "slackWebhook": "https://hooks.slack.com/services/T123/B456/xyz"
+}
+```
+
+Messages are only sent if findings are detected. See [Slack Integration](docs/SLACK.md) for:
+- Step-by-step Slack webhook setup
+- CI/CD integration examples (GitHub Actions, GitLab CI)
+- Message format and customization
 
 ## What it detects
 
