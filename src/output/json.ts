@@ -1,5 +1,6 @@
 import type { AuditResult, WorkspaceAuditResult } from '../types.js';
 import type { BaselineComparison, BaselineData, PackageBaselineResult } from '../baseline.js';
+import type { ProgressEntry } from '../progress.js';
 
 export function formatJson(result: AuditResult, baselineMessage?: string): string {
   const output: Record<string, unknown> = {
@@ -206,6 +207,76 @@ export function formatWorkspaceBaselineJson(packages: PackageBaselineResult[], s
         clientExposed: pkg.comparison.fixedFindings.clientExposed,
         readButUndeclared: pkg.comparison.fixedFindings.readButUndeclared,
         declaredButUnread: pkg.comparison.fixedFindings.declaredButUnread,
+      };
+    }
+
+    return item;
+  });
+
+  return JSON.stringify({ packages: formatted }, null, 2);
+}
+
+export function formatProgressJson(history: ProgressEntry[]): string {
+  const snapshots = history.map((entry) => ({
+    ...entry,
+    findings: {
+      ...entry.findings,
+      total:
+        entry.findings.clientExposed +
+        entry.findings.readButUndeclared +
+        entry.findings.declaredButUnread,
+    },
+  }));
+
+  const output: Record<string, unknown> = { snapshots };
+
+  if (snapshots.length >= 2) {
+    const firstTotal = snapshots[0].findings.total;
+    const lastTotal = snapshots[snapshots.length - 1].findings.total;
+    const change = lastTotal - firstTotal;
+
+    output.trend = {
+      firstTotal,
+      lastTotal,
+      change,
+      percentChange: firstTotal > 0 ? parseFloat(((change / firstTotal) * 100).toFixed(1)) : null,
+    };
+  }
+
+  return JSON.stringify(output, null, 2);
+}
+
+export function formatWorkspaceProgressJson(
+  packages: { packageName: string; packageDir: string; history: ProgressEntry[] }[],
+): string {
+  const formatted = packages.map((pkg) => {
+    const snapshots = pkg.history.map((entry) => ({
+      ...entry,
+      findings: {
+        ...entry.findings,
+        total:
+          entry.findings.clientExposed +
+          entry.findings.readButUndeclared +
+          entry.findings.declaredButUnread,
+      },
+    }));
+
+    const item: Record<string, unknown> = {
+      packageName: pkg.packageName,
+      packageDir: pkg.packageDir,
+      snapshots,
+    };
+
+    if (snapshots.length >= 2) {
+      const firstTotal = snapshots[0].findings.total;
+      const lastTotal = snapshots[snapshots.length - 1].findings.total;
+      const change = lastTotal - firstTotal;
+
+      item.trend = {
+        firstTotal,
+        lastTotal,
+        change,
+        percentChange: firstTotal > 0 ? parseFloat(((change / firstTotal) * 100).toFixed(1)) : null,
       };
     }
 
