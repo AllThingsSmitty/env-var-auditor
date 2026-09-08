@@ -4,7 +4,7 @@ Static analysis CLI that audits environment variable usage in Node.js and Next.j
 
 [![CI](https://github.com/AllThingsSmitty/env-var-auditor/actions/workflows/ci.yml/badge.svg)](https://github.com/AllThingsSmitty/env-var-auditor/actions/workflows/ci.yml)
 
-**[→ Quick start](docs/GETTING_STARTED.md)** | [Installation](#installation) | [Configuration](#configuration)
+[Installation](#installation) | [Configuration](#configuration) | [Usage](#usage)
 
 ## Why
 
@@ -312,8 +312,6 @@ Ready-to-use pipelines are in [`examples/gitlab-ci/`](examples/gitlab-ci/):
 | `workspace.yml` | Same, with `--workspaces` for monorepos                                      |
 | `strict.yml`    | Exit 1 = hard fail, exit 2 = soft warn, JSON report saved as job artifact   |
 
-See [GitLab CI/CD Integration](docs/GITLAB_CI.md) for detailed setup and customization.
-
 ## Slack notifications
 
 Notify your team immediately when environment variable issues are detected:
@@ -331,10 +329,7 @@ Or configure in `.env-auditorrc.json`:
 }
 ```
 
-Messages are only sent if findings are detected. See [Slack Integration](docs/SLACK.md) for:
-- Step-by-step Slack webhook setup
-- CI/CD integration examples (GitHub Actions, GitLab CI)
-- Message format and customization
+Messages are only sent if findings are detected.
 
 ## What it detects
 
