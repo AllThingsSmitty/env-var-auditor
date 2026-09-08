@@ -123,6 +123,78 @@ env-var-auditor . --ignore "**/__generated__/**"
 env-var-auditor . --format json
 ```
 
+## Baseline mode
+
+Track environment variable issues over time by comparing against a saved baseline. Separate new problems from existing ones to focus on recent changes.
+
+### Save a baseline
+
+Capture the current state as a reference point:
+
+```bash
+# Single-project baseline
+env-var-auditor . --save-baseline
+
+# Monorepo (saves per-package baselines)
+env-var-auditor . --workspaces --save-baseline
+```
+
+This creates `.env-auditor-baseline.json` (or a custom path via config file).
+
+### Compare against baseline
+
+Show only **new** findings since the baseline was created:
+
+```bash
+# Single-project comparison
+env-var-auditor . --baseline
+
+# Monorepo comparison
+env-var-auditor . --workspaces --baseline
+```
+
+By default, output shows:
+- **New findings** — issues introduced since baseline
+- **Fixed findings** — issues that were in the baseline but are now resolved
+- **Counts** for existing findings (still present)
+
+Exit codes report only new findings:
+- `0` = no new findings
+- `1` = new client-exposed variables found
+- `2` = new other findings (undeclared or unused)
+
+### Show all findings
+
+Display all findings (new + existing + fixed) alongside the baseline comparison:
+
+```bash
+env-var-auditor . --baseline --show-all
+env-var-auditor . --workspaces --baseline --show-all
+```
+
+Useful for:
+- **Progress tracking** — see the full picture of improvement over time
+- **Reporting** — show entire status in baseline-aware output
+- **Monitoring** — display existing issues alongside new ones
+
+**Table output** includes a "(showing all findings)" note in the header.
+
+**JSON output** changes when `--show-all` is used:
+- **With `--show-all`**: findings arrays include all findings; summary shows counts for `new`, `existing`, and `fixed`
+- **Without `--show-all`**: findings arrays show only new findings; includes detailed `new`, `existing`, and `fixed` sub-objects with full finding details
+
+### Customize baseline path
+
+In `.env-auditorrc.json`:
+
+```json
+{
+  "baselinePath": "config/.env-auditor-baseline.json"
+}
+```
+
+Path is resolved relative to the project directory. CLI `--baseline` argument takes precedence.
+
 ## Pre-commit hooks
 
 Automatically run env-var-auditor on every commit using [pre-commit](https://pre-commit.com) or [husky](https://typicode.github.io/husky/).
