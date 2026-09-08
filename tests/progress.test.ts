@@ -8,9 +8,8 @@ import {
   appendProgressEntry,
   getDefaultProgressPath,
   resolveProgressPath,
-  type ProgressEntry,
 } from '../src/progress.js';
-import { createBaseline, type BaselineData } from '../src/baseline.js';
+import { createBaseline } from '../src/baseline.js';
 import type { AuditResult } from '../src/types.js';
 
 let tempDir: string;
