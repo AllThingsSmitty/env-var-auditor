@@ -7,12 +7,17 @@ import {
   formatWorkspaceTable,
   formatBaselineTable,
   formatWorkspaceBaselineTable,
+  formatProgressTable,
+  formatWorkspaceProgressTable,
+  type PackageProgressInfo,
 } from './output/table.js';
 import {
   formatJson,
   formatWorkspaceJson,
   formatBaselineJson,
   formatWorkspaceBaselineJson,
+  formatProgressJson,
+  formatWorkspaceProgressJson,
 } from './output/json.js';
 import { loadConfig } from './config.js';
 import {
@@ -25,6 +30,12 @@ import {
   saveWorkspaceBaselines,
   compareWorkspaceBaselines,
 } from './baseline.js';
+import {
+  createProgressEntry,
+  appendProgressEntry,
+  loadProgressHistory,
+  resolveProgressPath,
+} from './progress.js';
 import { sendAuditToSlack } from './slack.js';
 import type { AuditResult, WorkspaceAuditResult } from './types.js';
 import { createRequire } from 'module';
@@ -46,6 +57,8 @@ program
   .option('--save-baseline', 'Save current findings as baseline')
   .option('--baseline [path]', 'Compare against baseline (auto-finds .env-auditor-baseline.json if no path given)')
   .option('--show-all', 'Show all findings (new + existing + fixed) when using --baseline')
+  .option('--track-progress', 'Record a progress snapshot when used with --save-baseline')
+  .option('--progress', 'Show progress history (trend across saved snapshots)')
   .option('--cache', 'Cache AST parsing results to speed up repeat audits (writes .env-auditor-cache.json)')
   .option('--slack-webhook <url>', 'Slack webhook URL to send audit results (env: ENV_VAR_AUDITOR_SLACK_WEBHOOK)')
   .action(
@@ -59,6 +72,8 @@ program
         saveBaseline?: boolean;
         baseline?: string | boolean;
         showAll?: boolean;
+        trackProgress?: boolean;
+        progress?: boolean;
         cache?: boolean;
         slackWebhook?: string;
       },
@@ -85,6 +100,14 @@ program
               resolveBaselinePath(packageDir, config?.baselinePath, true);
             const saved = saveWorkspaceBaselines(workspace, baselinePathFn);
 
+            if (opts.trackProgress) {
+              for (const item of saved) {
+                const progressPath = resolveProgressPath(item.packageDir, config?.progressPath);
+                appendProgressEntry(progressPath, createProgressEntry(item.baseline));
+              }
+              process.stdout.write(`✓ Progress snapshots recorded for ${saved.length} package(s)\n`);
+            }
+
             process.stdout.write(`✓ Baselines saved for ${saved.length} package(s):\n`);
             let totalClientExposed = 0;
             let totalReadUndeclared = 0;
@@ -108,6 +131,23 @@ program
               `  - Read but undeclared: ${totalReadUndeclared}\n` +
               `  - Declared but unread: ${totalDeclaredUnread}\n`,
             );
+            process.exit(0);
+          }
+
+          // Handle --workspaces --progress
+          if (opts.progress) {
+            const packages: PackageProgressInfo[] = workspace.packages.map((pkg) => ({
+              packageName: pkg.packageName,
+              packageDir: pkg.packageDir,
+              history: loadProgressHistory(resolveProgressPath(pkg.packageDir, config?.progressPath)),
+            }));
+
+            if (format === 'json') {
+              process.stdout.write(formatWorkspaceProgressJson(packages) + '\n');
+            } else {
+              process.stdout.write(formatWorkspaceProgressTable(packages, process.cwd(), version) + '\n');
+            }
+
             process.exit(0);
           }
 
@@ -182,12 +222,33 @@ program
             const baseline = createBaseline(result);
             const baselinePath = resolveBaselinePath(dir, config?.baselinePath, opts.saveBaseline);
             saveBaseline(baselinePath, baseline);
+
+            if (opts.trackProgress) {
+              const progressPath = resolveProgressPath(dir, config?.progressPath);
+              const history = appendProgressEntry(progressPath, createProgressEntry(baseline));
+              process.stdout.write(`✓ Progress snapshot recorded (${history.length} total)\n`);
+            }
+
             process.stdout.write(
               `✓ Baseline saved to ${baselinePath}\n` +
               `  - Client-exposed: ${baseline.findings.clientExposed.length}\n` +
               `  - Read but undeclared: ${baseline.findings.readButUndeclared.length}\n` +
               `  - Declared but unread: ${baseline.findings.declaredButUnread.length}\n`,
             );
+            process.exit(0);
+          }
+
+          // Handle --progress
+          if (opts.progress) {
+            const progressPath = resolveProgressPath(dir, config?.progressPath);
+            const history = loadProgressHistory(progressPath);
+
+            if (format === 'json') {
+              process.stdout.write(formatProgressJson(history) + '\n');
+            } else {
+              process.stdout.write(formatProgressTable(history, version) + '\n');
+            }
+
             process.exit(0);
           }
 

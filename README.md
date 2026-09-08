@@ -195,6 +195,52 @@ In `.env-auditorrc.json`:
 
 Path is resolved relative to the project directory. CLI `--baseline` argument takes precedence.
 
+## Progress tracking
+
+Track env var issues across multiple snapshots to see whether things are improving or regressing over time.
+
+### Record snapshots
+
+Use `--track-progress` alongside `--save-baseline` to record a point-in-time snapshot:
+
+```bash
+# Single-project
+env-var-auditor . --save-baseline --track-progress
+
+# Monorepo
+env-var-auditor . --workspaces --save-baseline --track-progress
+```
+
+This appends a snapshot to `.env-auditor-progress.json` (or a custom path in config). Snapshots are kept for the 50 most recent saves.
+
+### View progress
+
+Show the trend of findings over time:
+
+```bash
+env-var-auditor . --progress
+env-var-auditor . --workspaces --progress
+```
+
+**Table output** shows:
+- Snapshot date, finding counts per category, and total
+- **Δ column**: change from the previous snapshot (green for improvement, red for regression)
+- **Summary line**: overall % change from first → last snapshot
+
+**JSON output** includes:
+- All snapshots with finding counts and a computed total
+- `trend` object with `firstTotal`, `lastTotal`, `change`, and `percentChange` (omitted if fewer than 2 snapshots)
+
+### Customize progress path
+
+In `.env-auditorrc.json`:
+
+```json
+{
+  "progressPath": "monitoring/.env-auditor-progress.json"
+}
+```
+
 ## Pre-commit hooks
 
 Automatically run env-var-auditor on every commit using [pre-commit](https://pre-commit.com) or [husky](https://typicode.github.io/husky/).

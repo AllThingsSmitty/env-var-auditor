@@ -65,5 +65,6 @@ export interface EnvAuditorConfig {
   format?: 'table' | 'json';
   secretPatterns?: string[];
   baselinePath?: string;
+  progressPath?: string;
   slackWebhook?: string;
 }

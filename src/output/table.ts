@@ -3,6 +3,7 @@ import Table from 'cli-table3';
 import path from 'path';
 import type { AuditResult, WorkspaceAuditResult } from '../types.js';
 import type { BaselineComparison, PackageBaselineResult } from '../baseline.js';
+import type { ProgressEntry } from '../progress.js';
 
 function relPath(absPath: string, cwd: string): string {
   return path.relative(cwd, absPath).replace(/\\/g, '/');
@@ -398,6 +399,139 @@ export function formatWorkspaceBaselineTable(
 
   if (allFixedTotal > 0) {
     lines.push(chalk.green(`  · ${allFixedTotal} fixed since baseline`));
+  }
+
+  return lines.join('\n');
+}
+
+function formatProgressTableBody(history: ProgressEntry[]): string {
+  const lines: string[] = [];
+
+  if (history.length === 0) {
+    return chalk.dim('No progress history yet. Run: env-var-auditor . --save-baseline --track-progress');
+  }
+
+  const t = makeTable(['Date', 'Client-exposed', 'Undeclared', 'Unused', 'Total', 'Δ']);
+
+  for (let i = 0; i < history.length; i++) {
+    const entry = history[i];
+    const total =
+      entry.findings.clientExposed +
+      entry.findings.readButUndeclared +
+      entry.findings.declaredButUnread;
+
+    const date = new Date(entry.timestamp).toISOString().split('T')[0];
+    let delta = '—';
+
+    if (i > 0) {
+      const prevEntry = history[i - 1];
+      const prevTotal =
+        prevEntry.findings.clientExposed +
+        prevEntry.findings.readButUndeclared +
+        prevEntry.findings.declaredButUnread;
+      const change = total - prevTotal;
+
+      if (change > 0) {
+        delta = chalk.red(`+${change}`);
+      } else if (change < 0) {
+        delta = chalk.green(`${change}`);
+      } else {
+        delta = chalk.dim('0');
+      }
+    }
+
+    t.push([
+      date,
+      String(entry.findings.clientExposed),
+      String(entry.findings.readButUndeclared),
+      String(entry.findings.declaredButUnread),
+      String(total),
+      delta,
+    ]);
+  }
+
+  lines.push(t.toString());
+
+  // Summary line
+  const firstTotal =
+    history[0].findings.clientExposed +
+    history[0].findings.readButUndeclared +
+    history[0].findings.declaredButUnread;
+  const lastTotal =
+    history[history.length - 1].findings.clientExposed +
+    history[history.length - 1].findings.readButUndeclared +
+    history[history.length - 1].findings.declaredButUnread;
+
+  if (history.length > 1 && firstTotal > 0) {
+    const change = lastTotal - firstTotal;
+    const percentChange = ((change / firstTotal) * 100).toFixed(1);
+    const absChange = Math.abs(change);
+    const absPercent = Math.abs(parseFloat(percentChange));
+
+    if (change < 0) {
+      lines.push(chalk.green(`${absChange} fewer findings (${absPercent}% improvement)`));
+    } else if (change > 0) {
+      lines.push(chalk.red(`${change} more findings (${percentChange}% increase)`));
+    } else {
+      lines.push(chalk.dim('No change in total findings'));
+    }
+  } else if (history.length > 1 && firstTotal === 0) {
+    const lastHasFindings = lastTotal > 0;
+    if (lastHasFindings) {
+      lines.push(chalk.red(`${lastTotal} findings introduced`));
+    } else {
+      lines.push(chalk.green('Clean start, still clean'));
+    }
+  }
+
+  return lines.join('\n');
+}
+
+export function formatProgressTable(history: ProgressEntry[], version: string): string {
+  const header =
+    chalk.bold(`env-var-auditor`) +
+    `  v${version}  ·  ` +
+    chalk.dim(`${history.length} snapshot${history.length === 1 ? '' : 's'}`);
+
+  return [header, '', formatProgressTableBody(history)].join('\n');
+}
+
+export interface PackageProgressInfo {
+  packageName: string;
+  packageDir: string;
+  history: ProgressEntry[];
+}
+
+export function formatWorkspaceProgressTable(
+  packages: PackageProgressInfo[],
+  cwd: string,
+  version: string,
+): string {
+  const lines: string[] = [];
+
+  lines.push(
+    chalk.bold(`env-var-auditor`) +
+      `  v${version}  ·  workspace  ·  ` +
+      chalk.dim(`${packages.length} packages`),
+  );
+  lines.push('');
+
+  for (const pkg of packages) {
+    lines.push(chalk.bold(`▸ ${pkg.packageName}`) + chalk.dim(`  ${relPath(pkg.packageDir, cwd)}`));
+
+    if (pkg.history.length === 0) {
+      lines.push(chalk.dim('  No progress history yet'));
+    } else {
+      const body = formatProgressTableBody(pkg.history);
+      lines.push(
+        body
+          .split('\n')
+          .map((line) => `  ${line}`)
+          .join('\n'),
+      );
+    }
+
+    lines.push('');
   }
 
   return lines.join('\n');

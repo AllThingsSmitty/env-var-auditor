@@ -51,6 +51,12 @@ export function loadConfig(dir: string, explicitPath?: string): EnvAuditorConfig
     );
   }
 
+  if ('progressPath' in config && typeof config.progressPath !== 'string') {
+    throw new Error(
+      `Config field "progressPath" must be a string, got ${typeof config.progressPath}`,
+    );
+  }
+
   if ('slackWebhook' in config && typeof config.slackWebhook !== 'string') {
     throw new Error(
       `Config field "slackWebhook" must be a string, got ${typeof config.slackWebhook}`,
@@ -62,6 +68,7 @@ export function loadConfig(dir: string, explicitPath?: string): EnvAuditorConfig
     format: config.format as 'table' | 'json' | undefined,
     secretPatterns: config.secretPatterns as string[] | undefined,
     baselinePath: config.baselinePath as string | undefined,
+    progressPath: config.progressPath as string | undefined,
     slackWebhook: config.slackWebhook as string | undefined,
   };
 }
