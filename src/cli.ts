@@ -19,6 +19,7 @@ import {
   formatProgressJson,
   formatWorkspaceProgressJson,
 } from './output/json.js';
+import { formatSarifJson, formatWorkspaceSarifJson } from './output/sarif.js';
 import { loadConfig } from './config.js';
 import {
   createBaseline,
@@ -50,7 +51,7 @@ program
   .description('Static audit for environment variables in Node.js/Next.js projects')
   .version(version)
   .argument('[dir]', 'Project directory to audit (or workspace root with --workspaces)', '.')
-  .option('-f, --format <format>', 'Output format: table | json')
+  .option('-f, --format <format>', 'Output format: table | json | sarif')
   .option('--ignore <pattern>', 'Additional glob patterns to ignore (repeatable)', collect, [])
   .option('--config <path>', 'Path to config file (defaults to .env-auditorrc.json)')
   .option('--workspaces', 'Audit all packages in a monorepo workspace')
@@ -193,7 +194,9 @@ program
           }
 
           // Normal workspace mode (no baseline)
-          if (format === 'json') {
+          if (format === 'sarif') {
+            process.stdout.write(formatWorkspaceSarifJson(workspace) + '\n');
+          } else if (format === 'json') {
             process.stdout.write(formatWorkspaceJson(workspace) + '\n');
           } else {
             process.stdout.write(formatWorkspaceTable(workspace, process.cwd(), version) + '\n');
@@ -284,7 +287,9 @@ program
           }
 
           // Normal mode (no baseline)
-          if (format === 'json') {
+          if (format === 'sarif') {
+            process.stdout.write(formatSarifJson(result) + '\n');
+          } else if (format === 'json') {
             process.stdout.write(formatJson(result) + '\n');
           } else {
             process.stdout.write(formatTable(result, process.cwd(), version) + '\n');
