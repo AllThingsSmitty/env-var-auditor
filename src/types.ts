@@ -62,7 +62,7 @@ export interface WorkspaceAuditOptions {
 
 export interface EnvAuditorConfig {
   ignore?: string[];
-  format?: 'table' | 'json' | 'sarif';
+  format?: 'table' | 'json' | 'sarif' | 'junit';
   secretPatterns?: string[];
   baselinePath?: string;
   progressPath?: string;
