@@ -87,6 +87,59 @@ env-var-auditor . --format json
 env-var-auditor . --ignore "packages/legacy/**"
 ```
 
+## Output Formats
+
+### Table (default)
+
+Human-readable findings with colorized severity levels:
+
+```bash
+env-var-auditor .
+env-var-auditor . --format table
+```
+
+### JSON
+
+Parse-friendly output for CI pipelines and tooling:
+
+```bash
+env-var-auditor . --format json
+```
+
+Includes summary counts and all findings with file/line location data. Useful for:
+- Artifact uploads in CI/CD
+- Programmatic analysis
+- Integration with other tools
+
+### SARIF (Static Analysis Results Format)
+
+GitHub-native format for code scanning and GitHub Actions integration:
+
+```bash
+env-var-auditor . --format sarif > audit-results.sarif
+```
+
+SARIF output enables:
+- **GitHub Security tab integration** — Upload `.sarif` to your repo's code scanning dashboard
+- **Rules & severity** — Findings mapped to SARIF rule IDs with proper severity levels:
+  - `client-exposed` (error) — vars exposed to client bundles
+  - `read-but-undeclared` (warning) — missing env declarations
+  - `declared-but-unread` (note) — unused config
+
+**GitHub Actions example:**
+
+```yaml
+- name: Audit environment variables
+  run: env-var-auditor . --format sarif > audit-results.sarif
+
+- name: Upload SARIF to code scanning
+  uses: github/codeql-action/upload-sarif@v2
+  with:
+    sarif_file: audit-results.sarif
+```
+
+This will surface findings in your repo's Security → Code scanning tab, alongside other static analysis results.
+
 ## Configuration
 
 Create a `.env-auditorrc.json` file in your project root to codify shared standards for your team:
@@ -104,7 +157,7 @@ Create a `.env-auditorrc.json` file in your project root to codify shared standa
 | Field            | Type                | Description                                                                                                                                 |
 | ---------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ignore`         | `string[]`          | Additional glob patterns to exclude from scanning (unioned with built-in defaults like `node_modules`, `.next`, `dist`, etc.).              |
-| `format`         | `'table' \| 'json'` | Default output format. CLI `--format` flag overrides this.                                                                                  |
+| `format`         | `'table' \| 'json' \| 'sarif'` | Default output format. CLI `--format` flag overrides this.                                                                                  |
 | `secretPatterns` | `string[]`          | Custom regex patterns (case-insensitive) to detect secrets. Combined with built-in patterns (`sk_`, `whsec_`, `*SECRET*`, `*_TOKEN`, etc.). |
 | `slackWebhook`   | `string`            | Slack incoming webhook URL for audit result notifications. Can also be set via `ENV_VAR_AUDITOR_SLACK_WEBHOOK` env var or `--slack-webhook` CLI flag. |
 
