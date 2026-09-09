@@ -1,8 +1,9 @@
-import { createRequire } from 'module';
-import type { AuditResult, ClientExposedVar, EnvAccess, WorkspaceAuditResult } from '../types.js';
-
-const require = createRequire(import.meta.url);
-const { version } = require('../../package.json') as { version: string };
+import type {
+  AuditResult,
+  ClientExposedVar,
+  EnvAccess,
+  WorkspaceAuditResult,
+} from "../types.js";
 
 interface JunitTestCase {
   name: string;
@@ -29,20 +30,23 @@ interface JunitDocument {
 
 function escapeXml(str: string): string {
   return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
 }
 
-function clientExposedToTestCase(item: ClientExposedVar, index: number): JunitTestCase {
+function clientExposedToTestCase(
+  item: ClientExposedVar,
+  index: number,
+): JunitTestCase {
   const reason = item.secretPattern
     ? `matches secret pattern "${item.secretPattern}"`
-    : 'missing NEXT_PUBLIC_ prefix or equivalent';
+    : "missing NEXT_PUBLIC_ prefix or equivalent";
   return {
     name: `client-exposed-${item.name}-${index}`,
-    classname: 'env-var-auditor.client-exposed',
+    classname: "env-var-auditor.client-exposed",
     file: item.file,
     line: item.line,
     failure: {
@@ -52,10 +56,13 @@ function clientExposedToTestCase(item: ClientExposedVar, index: number): JunitTe
   };
 }
 
-function readButUndeclaredToTestCase(item: EnvAccess, index: number): JunitTestCase {
+function readButUndeclaredToTestCase(
+  item: EnvAccess,
+  index: number,
+): JunitTestCase {
   return {
     name: `read-but-undeclared-${item.name}-${index}`,
-    classname: 'env-var-auditor.read-but-undeclared',
+    classname: "env-var-auditor.read-but-undeclared",
     file: item.file,
     line: item.line,
     failure: {
@@ -65,10 +72,13 @@ function readButUndeclaredToTestCase(item: EnvAccess, index: number): JunitTestC
   };
 }
 
-function declaredButUnreadToTestCase(item: { name: string; source: string; line: number }, index: number): JunitTestCase {
+function declaredButUnreadToTestCase(
+  item: { name: string; source: string; line: number },
+  index: number,
+): JunitTestCase {
   return {
     name: `declared-but-unread-${item.name}-${index}`,
-    classname: 'env-var-auditor.declared-but-unread',
+    classname: "env-var-auditor.declared-but-unread",
     file: item.source,
     line: item.line,
     failure: {
@@ -94,7 +104,9 @@ function renderTestCase(tc: JunitTestCase): string {
 
 function renderTestSuite(suite: JunitTestSuite): string {
   const attrs = `name="${escapeXml(suite.name)}" tests="${suite.tests}" failures="${suite.failures}"`;
-  const packageAttr = suite.package ? ` package="${escapeXml(suite.package)}"` : '';
+  const packageAttr = suite.package
+    ? ` package="${escapeXml(suite.package)}"`
+    : "";
 
   let xml = `  <testsuite ${attrs}${packageAttr}>\n`;
   for (const tc of suite.testcases) {
@@ -105,7 +117,10 @@ function renderTestSuite(suite: JunitTestSuite): string {
   return xml;
 }
 
-export function formatJunitXml(result: AuditResult, projectName: string = 'env-var-auditor'): string {
+export function formatJunitXml(
+  result: AuditResult,
+  projectName: string = "env-var-auditor",
+): string {
   const testcases: JunitTestCase[] = [
     ...result.clientExposed.map(clientExposedToTestCase),
     ...result.readButUndeclared.map(readButUndeclaredToTestCase),
@@ -133,7 +148,9 @@ export function formatJunitXml(result: AuditResult, projectName: string = 'env-v
   return xml;
 }
 
-export function formatWorkspaceJunitXml(workspace: WorkspaceAuditResult): string {
+export function formatWorkspaceJunitXml(
+  workspace: WorkspaceAuditResult,
+): string {
   const suites: JunitTestSuite[] = workspace.packages.map((pkg) => {
     const testcases: JunitTestCase[] = [
       ...pkg.result.clientExposed.map(clientExposedToTestCase),
