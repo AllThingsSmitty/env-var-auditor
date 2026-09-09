@@ -140,6 +140,36 @@ SARIF output enables:
 
 This will surface findings in your repo's Security → Code scanning tab, alongside other static analysis results.
 
+### JUnit XML
+
+Standard test report format for CI/CD dashboards and test aggregation tools:
+
+```bash
+env-var-auditor . --format junit > test-results.xml
+```
+
+JUnit XML output maps findings to test cases with:
+- **Test case per finding** — each issue becomes a failed test case
+- **Classname hierarchy** — findings grouped by type (client-exposed, read-but-undeclared, declared-but-unread)
+- **File location** — `file` and `line` attributes for IDE/dashboard integration
+- **Failure details** — comprehensive message and context for each finding
+
+**CI/CD example** (artifact upload):
+
+```yaml
+- name: Audit environment variables
+  run: env-var-auditor . --format junit > test-results.xml
+
+- name: Upload test results
+  uses: actions/upload-artifact@v3
+  if: always()
+  with:
+    name: junit-results
+    path: test-results.xml
+```
+
+Most CI/CD platforms (Jenkins, GitLab CI, etc.) automatically parse and display JUnit XML results.
+
 ## Configuration
 
 Create a `.env-auditorrc.json` file in your project root to codify shared standards for your team:
@@ -157,7 +187,7 @@ Create a `.env-auditorrc.json` file in your project root to codify shared standa
 | Field            | Type                | Description                                                                                                                                 |
 | ---------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ignore`         | `string[]`          | Additional glob patterns to exclude from scanning (unioned with built-in defaults like `node_modules`, `.next`, `dist`, etc.).              |
-| `format`         | `'table' \| 'json' \| 'sarif'` | Default output format. CLI `--format` flag overrides this.                                                                                  |
+| `format`         | `'table' \| 'json' \| 'sarif' \| 'junit'` | Default output format. CLI `--format` flag overrides this.                                                                                  |
 | `secretPatterns` | `string[]`          | Custom regex patterns (case-insensitive) to detect secrets. Combined with built-in patterns (`sk_`, `whsec_`, `*SECRET*`, `*_TOKEN`, etc.). |
 | `slackWebhook`   | `string`            | Slack incoming webhook URL for audit result notifications. Can also be set via `ENV_VAR_AUDITOR_SLACK_WEBHOOK` env var or `--slack-webhook` CLI flag. |
 
