@@ -21,6 +21,12 @@ import {
 } from './output/json.js';
 import { formatSarifJson, formatWorkspaceSarifJson } from './output/sarif.js';
 import { formatJunitXml, formatWorkspaceJunitXml } from './output/junit.js';
+import {
+  formatHtml,
+  formatWorkspaceHtml,
+  formatProgressHtml,
+  formatWorkspaceProgressHtml,
+} from './output/html.js';
 import { loadConfig } from './config.js';
 import {
   createBaseline,
@@ -52,7 +58,7 @@ program
   .description('Static audit for environment variables in Node.js/Next.js projects')
   .version(version)
   .argument('[dir]', 'Project directory to audit (or workspace root with --workspaces)', '.')
-  .option('-f, --format <format>', 'Output format: table | json | sarif | junit')
+  .option('-f, --format <format>', 'Output format: table | json | sarif | junit | html')
   .option('--ignore <pattern>', 'Additional glob patterns to ignore (repeatable)', collect, [])
   .option('--config <path>', 'Path to config file (defaults to .env-auditorrc.json)')
   .option('--workspaces', 'Audit all packages in a monorepo workspace')
@@ -146,6 +152,8 @@ program
 
             if (format === 'json') {
               process.stdout.write(formatWorkspaceProgressJson(packages) + '\n');
+            } else if (format === 'html') {
+              process.stdout.write(formatWorkspaceProgressHtml(packages, process.cwd(), version) + '\n');
             } else {
               process.stdout.write(formatWorkspaceProgressTable(packages, process.cwd(), version) + '\n');
             }
@@ -199,6 +207,8 @@ program
             process.stdout.write(formatWorkspaceSarifJson(workspace) + '\n');
           } else if (format === 'junit') {
             process.stdout.write(formatWorkspaceJunitXml(workspace) + '\n');
+          } else if (format === 'html') {
+            process.stdout.write(formatWorkspaceHtml(workspace, process.cwd(), version) + '\n');
           } else if (format === 'json') {
             process.stdout.write(formatWorkspaceJson(workspace) + '\n');
           } else {
@@ -251,6 +261,8 @@ program
 
             if (format === 'json') {
               process.stdout.write(formatProgressJson(history) + '\n');
+            } else if (format === 'html') {
+              process.stdout.write(formatProgressHtml(history, version) + '\n');
             } else {
               process.stdout.write(formatProgressTable(history, version) + '\n');
             }
@@ -294,6 +306,8 @@ program
             process.stdout.write(formatSarifJson(result) + '\n');
           } else if (format === 'junit') {
             process.stdout.write(formatJunitXml(result) + '\n');
+          } else if (format === 'html') {
+            process.stdout.write(formatHtml(result, process.cwd(), version) + '\n');
           } else if (format === 'json') {
             process.stdout.write(formatJson(result) + '\n');
           } else {

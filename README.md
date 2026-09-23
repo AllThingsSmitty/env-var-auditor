@@ -170,6 +170,22 @@ JUnit XML output maps findings to test cases with:
 
 Most CI/CD platforms (Jenkins, GitLab CI, etc.) automatically parse and display JUnit XML results.
 
+### HTML report
+
+Self-contained HTML report — no server, no build step, no external assets. Open it in a browser or publish it as a CI artifact:
+
+```bash
+env-var-auditor . --format html > report.html
+```
+
+The report includes stat tiles for each finding category plus the full findings breakdown. Works with `--workspaces` too, rendering one section per package.
+
+Combine with `--progress` to render the trend dashboard instead — an inline SVG chart of findings over time (client-exposed, undeclared, unused) alongside the snapshot history table:
+
+```bash
+env-var-auditor . --progress --format html > progress.html
+```
+
 ## Configuration
 
 Create a `.env-auditorrc.json` file in your project root to codify shared standards for your team:

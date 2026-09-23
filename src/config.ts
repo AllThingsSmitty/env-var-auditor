@@ -33,9 +33,10 @@ export function loadConfig(dir: string, explicitPath?: string): EnvAuditorConfig
     throw new Error(`Config field "ignore" must be an array, got ${typeof config.ignore}`);
   }
 
-  if ('format' in config && (config.format !== 'table' && config.format !== 'json')) {
+  const validFormats = ['table', 'json', 'sarif', 'junit', 'html'];
+  if ('format' in config && !validFormats.includes(config.format as string)) {
     throw new Error(
-      `Config field "format" must be "table" or "json", got "${config.format}"`,
+      `Config field "format" must be one of ${validFormats.map((f) => `"${f}"`).join(', ')}, got "${config.format}"`,
     );
   }
 
@@ -65,7 +66,7 @@ export function loadConfig(dir: string, explicitPath?: string): EnvAuditorConfig
 
   return {
     ignore: config.ignore as string[] | undefined,
-    format: config.format as 'table' | 'json' | undefined,
+    format: config.format as 'table' | 'json' | 'sarif' | 'junit' | 'html' | undefined,
     secretPatterns: config.secretPatterns as string[] | undefined,
     baselinePath: config.baselinePath as string | undefined,
     progressPath: config.progressPath as string | undefined,
