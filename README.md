@@ -324,6 +324,98 @@ In `.env-auditorrc.json`:
 }
 ```
 
+## ESLint plugin
+
+The package ships a built-in ESLint plugin that surfaces env-var issues directly in your editor and CI lint step — no separate install needed.
+
+### Setup
+
+Add the plugin to your `eslint.config.js` (ESLint 9+ flat config):
+
+```js
+import envAuditor from 'env-var-auditor/eslint-plugin';
+
+export default [
+  // Use the recommended preset (both rules enabled)
+  envAuditor.configs.recommended,
+];
+```
+
+Or enable rules individually:
+
+```js
+import envAuditor from 'env-var-auditor/eslint-plugin';
+
+export default [
+  {
+    plugins: { 'env-var-auditor': envAuditor },
+    rules: {
+      'env-var-auditor/no-undeclared-env-vars': 'warn',
+      'env-var-auditor/no-client-exposure': 'error',
+    },
+  },
+];
+```
+
+### Rules
+
+#### `no-undeclared-env-vars`
+
+Flags `process.env` access for variables that aren't declared in any `.env` file. Supports member access (`process.env.FOO`), bracket access (`process.env['FOO']`), and destructuring (`const { FOO } = process.env`).
+
+```js
+// ❌ MISSING_VAR not found in any .env file
+const x = process.env.MISSING_VAR;
+
+// ✅ DATABASE_URL is declared in .env
+const db = process.env.DATABASE_URL;
+```
+
+By default the rule looks for `.env`, `.env.local`, `.env.development`, `.env.production`, and `.env.test` in the project root (`process.cwd()`). Override with rule options:
+
+```js
+rules: {
+  'env-var-auditor/no-undeclared-env-vars': ['warn', {
+    // Look for env files in a specific directory
+    envDir: './packages/api',
+    // Or point to explicit files
+    envFiles: ['.env', '.env.local'],
+  }],
+}
+```
+
+#### `no-client-exposure`
+
+Flags `process.env` access in files with a `'use client'` directive that would expose server-only variables to the browser bundle.
+
+Reports two sub-cases:
+
+- **`missingPrefix`** — variable accessed in a client file but missing the `NEXT_PUBLIC_` prefix
+- **`secretInClient`** — variable matches a secret pattern (e.g. `*SECRET*`, `*PASSWORD*`, `sk_`, `_TOKEN`) even if it has the `NEXT_PUBLIC_` prefix
+
+```js
+'use client';
+
+// ❌ missingPrefix — DATABASE_URL has no NEXT_PUBLIC_ prefix
+const db = process.env.DATABASE_URL;
+
+// ❌ secretInClient — NEXT_PUBLIC_JWT_SECRET matches *SECRET* pattern
+const secret = process.env.NEXT_PUBLIC_JWT_SECRET;
+
+// ✅ safe — NEXT_PUBLIC_ prefix, no secret pattern
+const url = process.env.NEXT_PUBLIC_APP_URL;
+```
+
+Add custom secret patterns alongside the built-in ones:
+
+```js
+rules: {
+  'env-var-auditor/no-client-exposure': ['error', {
+    secretPatterns: ['INTERNAL', 'CONFIDENTIAL'],
+  }],
+}
+```
+
 ## Pre-commit hooks
 
 Automatically run env-var-auditor on every commit using [pre-commit](https://pre-commit.com) or [husky](https://typicode.github.io/husky/).
