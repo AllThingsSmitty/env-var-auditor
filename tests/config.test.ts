@@ -70,7 +70,7 @@ describe('loadConfig', () => {
       }),
     );
 
-    expect(() => loadConfig(tempDir)).toThrow(/format" must be "table" or "json"/);
+    expect(() => loadConfig(tempDir)).toThrow(/format" must be one of/);
   });
 
   it('throws when secretPatterns is not an array', () => {
