@@ -12,13 +12,13 @@ Runtime tools like `t3-env` and `envalid` only validate values when the process 
 
 - which vars you declared but never actually use (dead config)
 - which vars your code reads that are missing from every env file (will silently be `undefined` in prod)
-- which vars are leaking into your **client bundle** — the security risk nobody notices until it's too late
+- which vars are leaking into your **client bundle**, the security risk nobody notices until it's too late
 
 That third bucket is the differentiator. Next.js will happily inline `process.env.STRIPE_SECRET_KEY` into your browser bundle if you reference it in a Client Component. No warning. No error. Just your secret key shipped to every visitor.
 
 ## Before / after
 
-**Before** — your checkout page ships your Stripe secret key to every browser:
+**Before**: your checkout page ships your Stripe secret key to every browser.
 
 ```tsx
 'use client';
@@ -120,11 +120,11 @@ env-var-auditor . --format sarif > audit-results.sarif
 ```
 
 SARIF output enables:
-- **GitHub Security tab integration** — Upload `.sarif` to your repo's code scanning dashboard
-- **Rules & severity** — Findings mapped to SARIF rule IDs with proper severity levels:
-  - `client-exposed` (error) — vars exposed to client bundles
-  - `read-but-undeclared` (warning) — missing env declarations
-  - `declared-but-unread` (note) — unused config
+- **GitHub Security tab integration**: upload `.sarif` to your repo's code scanning dashboard
+- **Rules & severity**: findings mapped to SARIF rule IDs with proper severity levels:
+  - `client-exposed` (error): vars exposed to client bundles
+  - `read-but-undeclared` (warning): missing env declarations
+  - `declared-but-unread` (note): unused config
 
 **GitHub Actions example:**
 
@@ -146,7 +146,7 @@ This will surface findings in your repo's Security → Code scanning tab, alongs
 env-var-auditor . --format sarif --baseline > audit-results.sarif
 ```
 
-By default, SARIF results include only *new* findings (not present in the baseline), so code scanning only alerts on regressions. Pass `--show-all` to also include baseline findings — they're included with `suppressions: [{ kind: "external" }]` and `properties.baselineState: "unchanged"`, so tools that honor SARIF suppressions (including GitHub code scanning) treat them as known/dismissed rather than active alerts. New findings carry `properties.baselineState: "new"` and no suppression.
+By default, SARIF results include only *new* findings (not present in the baseline), so code scanning only alerts on regressions. Pass `--show-all` to also include baseline findings: they're included with `suppressions: [{ kind: "external" }]` and `properties.baselineState: "unchanged"`, so tools that honor SARIF suppressions (including GitHub code scanning) treat them as known/dismissed rather than active alerts. New findings carry `properties.baselineState: "new"` and no suppression.
 
 ### JUnit XML
 
@@ -157,10 +157,10 @@ env-var-auditor . --format junit > test-results.xml
 ```
 
 JUnit XML output maps findings to test cases with:
-- **Test case per finding** — each issue becomes a failed test case
-- **Classname hierarchy** — findings grouped by type (client-exposed, read-but-undeclared, declared-but-unread)
-- **File location** — `file` and `line` attributes for IDE/dashboard integration
-- **Failure details** — comprehensive message and context for each finding
+- **Test case per finding**: each issue becomes a failed test case
+- **Classname hierarchy**: findings grouped by type (client-exposed, read-but-undeclared, declared-but-unread)
+- **File location**: `file` and `line` attributes for IDE/dashboard integration
+- **Failure details**: full message and context for each finding
 
 **CI/CD example** (artifact upload):
 
@@ -180,7 +180,7 @@ Most CI/CD platforms (Jenkins, GitLab CI, etc.) automatically parse and display 
 
 ### HTML report
 
-Self-contained HTML report — no server, no build step, no external assets. Open it in a browser or publish it as a CI artifact:
+Self-contained HTML report: no server, no build step, no external assets. Open it in a browser or publish it as a CI artifact:
 
 ```bash
 env-var-auditor . --format html > report.html
@@ -188,7 +188,7 @@ env-var-auditor . --format html > report.html
 
 The report includes stat tiles for each finding category plus the full findings breakdown. Works with `--workspaces` too, rendering one section per package.
 
-Combine with `--progress` to render the trend dashboard instead — an inline SVG chart of findings over time (client-exposed, undeclared, unused) alongside the snapshot history table:
+Combine with `--progress` to render the trend dashboard instead: an inline SVG chart of findings over time (client-exposed, undeclared, unused) alongside the snapshot history table:
 
 ```bash
 env-var-auditor . --progress --format html > progress.html
@@ -261,8 +261,8 @@ env-var-auditor . --workspaces --baseline
 ```
 
 By default, output shows:
-- **New findings** — issues introduced since baseline
-- **Fixed findings** — issues that were in the baseline but are now resolved
+- **New findings**: issues introduced since baseline
+- **Fixed findings**: issues that were in the baseline but are now resolved
 - **Counts** for existing findings (still present)
 
 Exit codes report only new findings:
@@ -280,9 +280,9 @@ env-var-auditor . --workspaces --baseline --show-all
 ```
 
 Useful for:
-- **Progress tracking** — see the full picture of improvement over time
-- **Reporting** — show entire status in baseline-aware output
-- **Monitoring** — display existing issues alongside new ones
+- **Progress tracking**: see the full picture of improvement over time
+- **Reporting**: show entire status in baseline-aware output
+- **Monitoring**: display existing issues alongside new ones
 
 **Table output** includes a "(showing all findings)" note in the header.
 
@@ -350,7 +350,7 @@ In `.env-auditorrc.json`:
 
 ## ESLint plugin
 
-The package ships a built-in ESLint plugin that surfaces env-var issues directly in your editor and CI lint step — no separate install needed.
+The package ships a built-in ESLint plugin that surfaces env-var issues directly in your editor and CI lint step, no separate install needed.
 
 ### Setup
 
@@ -414,19 +414,19 @@ Flags `process.env` access in files with a `'use client'` directive that would e
 
 Reports two sub-cases:
 
-- **`missingPrefix`** — variable accessed in a client file but missing the `NEXT_PUBLIC_` prefix
-- **`secretInClient`** — variable matches a secret pattern (e.g. `*SECRET*`, `*PASSWORD*`, `sk_`, `_TOKEN`) even if it has the `NEXT_PUBLIC_` prefix
+- **`missingPrefix`**: variable accessed in a client file but missing the `NEXT_PUBLIC_` prefix
+- **`secretInClient`**: variable matches a secret pattern (e.g. `*SECRET*`, `*PASSWORD*`, `sk_`, `_TOKEN`) even if it has the `NEXT_PUBLIC_` prefix
 
 ```js
 'use client';
 
-// ❌ missingPrefix — DATABASE_URL has no NEXT_PUBLIC_ prefix
+// ❌ missingPrefix: DATABASE_URL has no NEXT_PUBLIC_ prefix
 const db = process.env.DATABASE_URL;
 
-// ❌ secretInClient — NEXT_PUBLIC_JWT_SECRET matches *SECRET* pattern
+// ❌ secretInClient: NEXT_PUBLIC_JWT_SECRET matches *SECRET* pattern
 const secret = process.env.NEXT_PUBLIC_JWT_SECRET;
 
-// ✅ safe — NEXT_PUBLIC_ prefix, no secret pattern
+// ✅ safe, NEXT_PUBLIC_ prefix, no secret pattern
 const url = process.env.NEXT_PUBLIC_APP_URL;
 ```
 
@@ -484,8 +484,8 @@ See [`examples/husky/`](examples/husky/) for full examples.
 
 | Code | Meaning                                                   |
 | ---- | --------------------------------------------------------- |
-| `0`  | Clean — no findings                                       |
-| `1`  | Client-exposed variables found (security risk — block CI) |
+| `0`  | Clean, no findings                                       |
+| `1`  | Client-exposed variables found (security risk, block CI) |
 | `2`  | Other findings only (undeclared or unused vars)           |
 | `3`  | Unexpected error                                          |
 
@@ -544,8 +544,8 @@ Variables referenced in code (`process.env.X`) that are missing from every `.env
 
 Variables accessed from Client Components (`'use client'`) that either:
 
-- **Lack the `NEXT_PUBLIC_` prefix** — Next.js will include the raw access in the bundle (value is `undefined` in prod, but the pattern can still be exploited in dev)
-- **Have `NEXT_PUBLIC_` but match a secret pattern** — `sk_`, `whsec_`, `*SECRET*`, `*_KEY`, etc. These will be inlined into the bundle and shipped to every browser
+- **Lack the `NEXT_PUBLIC_` prefix**: Next.js will include the raw access in the bundle (value is `undefined` in prod, but the pattern can still be exploited in dev)
+- **Have `NEXT_PUBLIC_` but match a secret pattern**: `sk_`, `whsec_`, `*SECRET*`, `*_KEY`, etc. These will be inlined into the bundle and shipped to every browser
 
 ### Unauditable
 
@@ -559,7 +559,7 @@ AST-based parsing via the TypeScript compiler API (via `ts-morph`), not regex. H
 process.env.FOO; // member access
 process.env["FOO"]; // bracket access with string literal
 const { FOO } = process.env; // destructuring
-process.env[someVar]; // dynamic — flagged as unauditable
+process.env[someVar]; // dynamic, flagged as unauditable
 ```
 
 ## Supported env files
@@ -568,5 +568,5 @@ process.env[someVar]; // dynamic — flagged as unauditable
 
 ## Limitations
 
-- Does not track aliased references: `const env = process.env; env.FOO` — only direct `process.env.*` access is detected
+- Does not track aliased references: `const env = process.env; env.FOO` only triggers on direct `process.env.*` access
 - Dynamic keys are flagged but not resolved
