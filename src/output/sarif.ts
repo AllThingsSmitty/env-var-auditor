@@ -5,6 +5,11 @@ import type {
   EnvAccess,
   WorkspaceAuditResult,
 } from "../types.js";
+import type {
+  BaselineComparison,
+  BaselineData,
+  PackageBaselineResult,
+} from "../baseline.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../../package.json") as { version: string };
@@ -30,11 +35,22 @@ interface SarifMessage {
   text: string;
 }
 
+type BaselineState = "new" | "unchanged";
+
+interface SarifSuppression {
+  kind: "external";
+  justification: string;
+}
+
 interface SarifResult {
   ruleId: string;
   message: SarifMessage;
   level: "note" | "warning" | "error";
   locations: SarifLocation[];
+  suppressions?: SarifSuppression[];
+  properties?: {
+    baselineState: BaselineState;
+  };
 }
 
 interface SarifRuleDescriptor {
@@ -64,6 +80,10 @@ interface SarifRun {
   properties?: {
     packageName?: string;
     packageDir?: string;
+    baseline?: {
+      version: string;
+      timestamp: string;
+    };
   };
 }
 
@@ -164,6 +184,174 @@ function declaredButUnreadToResult(item: {
     item.line,
     `Variable "${item.name}" declared but never read`,
   );
+}
+
+function withBaselineState(
+  result: SarifResult,
+  state: BaselineState,
+  baselineTimestamp: string,
+): SarifResult {
+  const tagged: SarifResult = {
+    ...result,
+    properties: { baselineState: state },
+  };
+
+  if (state === "unchanged") {
+    tagged.suppressions = [
+      {
+        kind: "external",
+        justification: `Present in baseline recorded ${baselineTimestamp}`,
+      },
+    ];
+  }
+
+  return tagged;
+}
+
+function buildBaselineResults(
+  result: AuditResult,
+  comparison: BaselineComparison,
+  baseline: BaselineData,
+  showAll?: boolean,
+): SarifResult[] {
+  const newClientExposed = result.clientExposed.filter((f) =>
+    comparison.newFindings.clientExposed.includes(f.name),
+  );
+  const newReadUndeclared = result.readButUndeclared.filter((f) =>
+    comparison.newFindings.readButUndeclared.includes(f.name ?? ""),
+  );
+  const newDeclaredUnread = result.declaredButUnread.filter((f) =>
+    comparison.newFindings.declaredButUnread.includes(f.name),
+  );
+
+  const results: SarifResult[] = [
+    ...newClientExposed.map((f) =>
+      withBaselineState(clientExposedToResult(f), "new", baseline.timestamp),
+    ),
+    ...newReadUndeclared.map((f) =>
+      withBaselineState(
+        readButUndeclaredToResult(f),
+        "new",
+        baseline.timestamp,
+      ),
+    ),
+    ...newDeclaredUnread.map((f) =>
+      withBaselineState(
+        declaredButUnreadToResult(f),
+        "new",
+        baseline.timestamp,
+      ),
+    ),
+  ];
+
+  if (showAll) {
+    const existingClientExposed = result.clientExposed.filter((f) =>
+      comparison.baselineFindings.clientExposed.includes(f.name),
+    );
+    const existingReadUndeclared = result.readButUndeclared.filter((f) =>
+      comparison.baselineFindings.readButUndeclared.includes(f.name ?? ""),
+    );
+    const existingDeclaredUnread = result.declaredButUnread.filter((f) =>
+      comparison.baselineFindings.declaredButUnread.includes(f.name),
+    );
+
+    results.push(
+      ...existingClientExposed.map((f) =>
+        withBaselineState(
+          clientExposedToResult(f),
+          "unchanged",
+          baseline.timestamp,
+        ),
+      ),
+      ...existingReadUndeclared.map((f) =>
+        withBaselineState(
+          readButUndeclaredToResult(f),
+          "unchanged",
+          baseline.timestamp,
+        ),
+      ),
+      ...existingDeclaredUnread.map((f) =>
+        withBaselineState(
+          declaredButUnreadToResult(f),
+          "unchanged",
+          baseline.timestamp,
+        ),
+      ),
+    );
+  }
+
+  return results;
+}
+
+export function formatBaselineSarifJson(
+  result: AuditResult,
+  comparison: BaselineComparison,
+  baseline: BaselineData,
+  showAll?: boolean,
+  packageName?: string,
+  packageDir?: string,
+): string {
+  const run: SarifRun = {
+    tool: {
+      driver: {
+        name: "env-var-auditor",
+        version,
+        rules: RULES,
+      },
+    },
+    results: buildBaselineResults(result, comparison, baseline, showAll),
+    properties: {
+      ...(packageName && packageDir ? { packageName, packageDir } : {}),
+      baseline: { version: baseline.version, timestamp: baseline.timestamp },
+    },
+  };
+
+  const log: SarifLog = {
+    $schema:
+      "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+    version: "2.1.0",
+    runs: [run],
+  };
+
+  return JSON.stringify(log, null, 2);
+}
+
+export function formatWorkspaceBaselineSarifJson(
+  packages: PackageBaselineResult[],
+  showAll?: boolean,
+): string {
+  const runs: SarifRun[] = packages.map((pkg) => ({
+    tool: {
+      driver: {
+        name: "env-var-auditor",
+        version,
+        rules: RULES,
+      },
+    },
+    results: buildBaselineResults(
+      pkg.result,
+      pkg.comparison,
+      pkg.baseline,
+      showAll,
+    ),
+    properties: {
+      packageName: pkg.packageName,
+      packageDir: pkg.packageDir,
+      baseline: {
+        version: pkg.baseline.version,
+        timestamp: pkg.baseline.timestamp,
+      },
+    },
+  }));
+
+  const log: SarifLog = {
+    $schema:
+      "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+    version: "2.1.0",
+    runs,
+  };
+
+  return JSON.stringify(log, null, 2);
 }
 
 export function formatSarifJson(

@@ -1,6 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { formatSarifJson, formatWorkspaceSarifJson } from '../src/output/sarif.js';
+import {
+  formatSarifJson,
+  formatWorkspaceSarifJson,
+  formatBaselineSarifJson,
+  formatWorkspaceBaselineSarifJson,
+} from '../src/output/sarif.js';
 import type { AuditResult, WorkspaceAuditResult } from '../src/types.js';
+import type { BaselineComparison, BaselineData, PackageBaselineResult } from '../src/baseline.js';
 
 describe('SARIF output', () => {
   const mockResult: AuditResult = {
@@ -210,6 +216,137 @@ describe('SARIF output', () => {
         expect(result.locations[0].physicalLocation.artifactLocation).toBeDefined();
         expect(result.locations[0].physicalLocation.artifactLocation.uri).toBeDefined();
       }
+    });
+  });
+
+  describe('baseline comparison', () => {
+    const mockBaseline: BaselineData = {
+      version: '0.8.0',
+      timestamp: '2026-01-01T00:00:00.000Z',
+      findings: {
+        clientExposed: ['SECRET_KEY'],
+        readButUndeclared: [],
+        declaredButUnread: ['UNUSED_VAR'],
+      },
+    };
+
+    const mockComparison: BaselineComparison = {
+      newFindings: {
+        clientExposed: [],
+        readButUndeclared: ['MISSING_VAR'],
+        declaredButUnread: [],
+      },
+      baselineFindings: {
+        clientExposed: ['SECRET_KEY'],
+        readButUndeclared: [],
+        declaredButUnread: ['UNUSED_VAR'],
+      },
+      fixedFindings: {
+        clientExposed: [],
+        readButUndeclared: [],
+        declaredButUnread: [],
+      },
+    };
+
+    describe('formatBaselineSarifJson', () => {
+      it('only includes new findings by default', () => {
+        const output = JSON.parse(
+          formatBaselineSarifJson(mockResult, mockComparison, mockBaseline),
+        );
+        const results = output.runs[0].results;
+
+        expect(results).toHaveLength(1);
+        expect(results[0].message.text).toContain('MISSING_VAR');
+        expect(results[0].properties.baselineState).toBe('new');
+        expect(results[0].suppressions).toBeUndefined();
+      });
+
+      it('includes baseline findings as suppressed when showAll is set', () => {
+        const output = JSON.parse(
+          formatBaselineSarifJson(mockResult, mockComparison, mockBaseline, true),
+        );
+        const results = output.runs[0].results;
+
+        expect(results).toHaveLength(3);
+
+        const newResult = results.find((r: { message: { text: string } }) =>
+          r.message.text.includes('MISSING_VAR'),
+        );
+        expect(newResult.properties.baselineState).toBe('new');
+        expect(newResult.suppressions).toBeUndefined();
+
+        const unchangedResult = results.find((r: { message: { text: string } }) =>
+          r.message.text.includes('SECRET_KEY'),
+        );
+        expect(unchangedResult.properties.baselineState).toBe('unchanged');
+        expect(unchangedResult.suppressions).toEqual([
+          { kind: 'external', justification: expect.stringContaining('2026-01-01T00:00:00.000Z') },
+        ]);
+      });
+
+      it('includes baseline metadata in run properties', () => {
+        const output = JSON.parse(
+          formatBaselineSarifJson(mockResult, mockComparison, mockBaseline, false, '@my-org/pkg', 'packages/pkg'),
+        );
+        const run = output.runs[0];
+
+        expect(run.properties.packageName).toBe('@my-org/pkg');
+        expect(run.properties.packageDir).toBe('packages/pkg');
+        expect(run.properties.baseline).toEqual({
+          version: '0.8.0',
+          timestamp: '2026-01-01T00:00:00.000Z',
+        });
+      });
+    });
+
+    describe('formatWorkspaceBaselineSarifJson', () => {
+      const mockPackages: PackageBaselineResult[] = [
+        {
+          packageName: '@app/web',
+          packageDir: 'packages/web',
+          result: mockResult,
+          baseline: mockBaseline,
+          comparison: mockComparison,
+          baselineMissing: false,
+        },
+        {
+          packageName: '@app/api',
+          packageDir: 'packages/api',
+          result: { ...mockResult, clientExposed: [], readButUndeclared: [] },
+          baseline: mockBaseline,
+          comparison: {
+            newFindings: { clientExposed: [], readButUndeclared: [], declaredButUnread: [] },
+            baselineFindings: { clientExposed: [], readButUndeclared: [], declaredButUnread: ['UNUSED_VAR'] },
+            fixedFindings: { clientExposed: [], readButUndeclared: [], declaredButUnread: [] },
+          },
+          baselineMissing: false,
+        },
+      ];
+
+      it('creates one run per package with only new findings by default', () => {
+        const output = JSON.parse(formatWorkspaceBaselineSarifJson(mockPackages));
+
+        expect(output.runs).toHaveLength(2);
+        expect(output.runs[0].results).toHaveLength(1);
+        expect(output.runs[0].results[0].message.text).toContain('MISSING_VAR');
+        expect(output.runs[1].results).toHaveLength(0);
+      });
+
+      it('includes suppressed baseline findings when showAll is set', () => {
+        const output = JSON.parse(formatWorkspaceBaselineSarifJson(mockPackages, true));
+
+        expect(output.runs[0].results).toHaveLength(3);
+        expect(output.runs[1].results).toHaveLength(1);
+        expect(output.runs[1].results[0].properties.baselineState).toBe('unchanged');
+        expect(output.runs[1].results[0].suppressions).toBeDefined();
+      });
+
+      it('includes per-package baseline metadata', () => {
+        const output = JSON.parse(formatWorkspaceBaselineSarifJson(mockPackages));
+
+        expect(output.runs[0].properties.baseline.version).toBe('0.8.0');
+        expect(output.runs[0].properties.packageName).toBe('@app/web');
+      });
     });
   });
 });
