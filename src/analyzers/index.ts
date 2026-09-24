@@ -20,14 +20,14 @@ const SECRET_PATTERNS: Array<{ pattern: RegExp; label: string }> = [
   { pattern: /^TOKEN/i, label: 'TOKEN*' },
 ];
 
-interface AnalysisResult {
+export interface AnalysisResult {
   declaredButUnread: EnvDeclaration[];
   readButUndeclared: EnvAccess[];
   clientExposed: ClientExposedVar[];
   unauditable: EnvAccess[];
 }
 
-interface AnalyzeOptions {
+export interface AnalyzeOptions {
   extraSecretPatterns?: string[];
 }
 

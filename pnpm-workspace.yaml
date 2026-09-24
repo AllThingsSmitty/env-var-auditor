@@ -1,2 +1,7 @@
 allowBuilds:
   esbuild: true
+packages:
+  - '.'
+  - 'vscode-extension'
+patchedDependencies:
+  '@vscode/test-electron': patches/@vscode__test-electron.patch

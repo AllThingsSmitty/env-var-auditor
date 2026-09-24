@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { audit, loadConfig } from '../src/index.js';
+import { audit, loadConfig, collectAuditInputs, analyze } from '../src/index.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FIXTURE_DIR = path.join(__dirname, '../fixtures/nextjs-sample');
@@ -39,6 +39,21 @@ describe('integration — nextjs-sample fixture', () => {
 
     // Dynamic access is flagged as unauditable
     expect(result.unauditable.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('collectAuditInputs + analyze reproduces the same result as audit()', async () => {
+    const viaAudit = await audit({ dir: FIXTURE_DIR });
+    const inputs = await collectAuditInputs({ dir: FIXTURE_DIR });
+    const viaAnalyze = analyze(inputs.declarations, inputs.accesses);
+
+    expect(inputs.sourceFiles.length).toBe(viaAudit.scannedFiles);
+    expect(inputs.envFiles.length).toBe(viaAudit.scannedEnvFiles);
+    expect(viaAnalyze.readButUndeclared).toEqual(viaAudit.readButUndeclared);
+    expect(viaAnalyze.clientExposed).toEqual(viaAudit.clientExposed);
+    expect(viaAnalyze.unauditable).toEqual(viaAudit.unauditable);
+    // audit() additionally filters root-only unread vars, a no-op here since
+    // this fixture has no rootDir — the two should match exactly.
+    expect(viaAnalyze.declaredButUnread).toEqual(viaAudit.declaredButUnread);
   });
 });
 

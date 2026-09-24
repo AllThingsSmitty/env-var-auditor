@@ -53,15 +53,28 @@ import { sendAuditToSlack } from './slack.js';
 import type { AuditResult, WorkspaceAuditResult } from './types.js';
 import { createRequire } from 'module';
 
-const require = createRequire(import.meta.url);
-const { version } = require('../package.json') as { version: string };
+// Lazy + memoized — see the comment on the equivalent helper in audit.ts:
+// reading this eagerly at module load time via `createRequire(import.meta.url)`
+// breaks consumers that bundle this ESM module into CommonJS, since esbuild
+// (and similar bundlers) can't polyfill `import.meta.url` for CJS output.
+// cli.ts isn't currently re-exported from index.ts, so it isn't reachable
+// from the VS Code extension's bundle today, but keeping the same lazy
+// pattern here avoids reintroducing this footgun if that ever changes.
+let cachedVersion: string | undefined;
+function getPackageVersion(): string {
+  if (cachedVersion === undefined) {
+    const require = createRequire(import.meta.url);
+    cachedVersion = (require('../package.json') as { version: string }).version;
+  }
+  return cachedVersion;
+}
 
 const program = new Command();
 
 program
   .name('env-var-auditor')
   .description('Static audit for environment variables in Node.js/Next.js projects')
-  .version(version)
+  .version(getPackageVersion())
   .argument('[dir]', 'Project directory to audit (or workspace root with --workspaces)', '.')
   .option('-f, --format <format>', 'Output format: table | json | sarif | junit | html')
   .option('--ignore <pattern>', 'Additional glob patterns to ignore (repeatable)', collect, [])
@@ -158,9 +171,9 @@ program
             if (format === 'json') {
               process.stdout.write(formatWorkspaceProgressJson(packages) + '\n');
             } else if (format === 'html') {
-              process.stdout.write(formatWorkspaceProgressHtml(packages, process.cwd(), version) + '\n');
+              process.stdout.write(formatWorkspaceProgressHtml(packages, process.cwd(), getPackageVersion()) + '\n');
             } else {
-              process.stdout.write(formatWorkspaceProgressTable(packages, process.cwd(), version) + '\n');
+              process.stdout.write(formatWorkspaceProgressTable(packages, process.cwd(), getPackageVersion()) + '\n');
             }
 
             process.exit(0);
@@ -192,7 +205,7 @@ program
             } else if (format === 'sarif') {
               process.stdout.write(formatWorkspaceBaselineSarifJson(baselineResults, opts.showAll) + '\n');
             } else {
-              process.stdout.write(formatWorkspaceBaselineTable(baselineResults, process.cwd(), version, opts.showAll) + '\n');
+              process.stdout.write(formatWorkspaceBaselineTable(baselineResults, process.cwd(), getPackageVersion(), opts.showAll) + '\n');
             }
 
             await sendToSlackIfConfigured(slackWebhook, workspace);
@@ -215,11 +228,11 @@ program
           } else if (format === 'junit') {
             process.stdout.write(formatWorkspaceJunitXml(workspace) + '\n');
           } else if (format === 'html') {
-            process.stdout.write(formatWorkspaceHtml(workspace, process.cwd(), version) + '\n');
+            process.stdout.write(formatWorkspaceHtml(workspace, process.cwd(), getPackageVersion()) + '\n');
           } else if (format === 'json') {
             process.stdout.write(formatWorkspaceJson(workspace) + '\n');
           } else {
-            process.stdout.write(formatWorkspaceTable(workspace, process.cwd(), version) + '\n');
+            process.stdout.write(formatWorkspaceTable(workspace, process.cwd(), getPackageVersion()) + '\n');
           }
 
           await sendToSlackIfConfigured(slackWebhook, workspace);
@@ -269,9 +282,9 @@ program
             if (format === 'json') {
               process.stdout.write(formatProgressJson(history) + '\n');
             } else if (format === 'html') {
-              process.stdout.write(formatProgressHtml(history, version) + '\n');
+              process.stdout.write(formatProgressHtml(history, getPackageVersion()) + '\n');
             } else {
-              process.stdout.write(formatProgressTable(history, version) + '\n');
+              process.stdout.write(formatProgressTable(history, getPackageVersion()) + '\n');
             }
 
             process.exit(0);
@@ -291,7 +304,7 @@ program
               process.stdout.write(formatBaselineSarifJson(result, comparison, baseline, opts.showAll) + '\n');
             } else {
               process.stdout.write(
-                formatBaselineTable(result, comparison, process.cwd(), version, baseline, opts.showAll) + '\n',
+                formatBaselineTable(result, comparison, process.cwd(), getPackageVersion(), baseline, opts.showAll) + '\n',
               );
             }
 
@@ -316,11 +329,11 @@ program
           } else if (format === 'junit') {
             process.stdout.write(formatJunitXml(result) + '\n');
           } else if (format === 'html') {
-            process.stdout.write(formatHtml(result, process.cwd(), version) + '\n');
+            process.stdout.write(formatHtml(result, process.cwd(), getPackageVersion()) + '\n');
           } else if (format === 'json') {
             process.stdout.write(formatJson(result) + '\n');
           } else {
-            process.stdout.write(formatTable(result, process.cwd(), version) + '\n');
+            process.stdout.write(formatTable(result, process.cwd(), getPackageVersion()) + '\n');
           }
 
           await sendToSlackIfConfigured(slackWebhook, result, dir);

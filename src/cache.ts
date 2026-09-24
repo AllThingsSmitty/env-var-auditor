@@ -4,8 +4,19 @@ import crypto from 'crypto';
 import { createRequire } from 'module';
 import type { EnvAccess } from './types.js';
 
-const require = createRequire(import.meta.url);
-const { version } = require('../package.json') as { version: string };
+// Lazy + memoized — see the comment on the equivalent helper in audit.ts:
+// reading this eagerly at module load time via `createRequire(import.meta.url)`
+// breaks consumers that bundle this ESM module into CommonJS (e.g. the VS
+// Code extension's esbuild bundle), since esbuild can't polyfill
+// `import.meta.url` for CJS output.
+let cachedVersion: string | undefined;
+function getPackageVersion(): string {
+  if (cachedVersion === undefined) {
+    const require = createRequire(import.meta.url);
+    cachedVersion = (require('../package.json') as { version: string }).version;
+  }
+  return cachedVersion;
+}
 
 export interface CacheEntry {
   mtimeMs: number;
@@ -29,27 +40,27 @@ export function hashContent(content: string): string {
 
 export function loadCache(cachePath: string): CacheData {
   if (!fs.existsSync(cachePath)) {
-    return { version, entries: {} };
+    return { version: getPackageVersion(), entries: {} };
   }
 
   try {
     const content = fs.readFileSync(cachePath, 'utf-8');
     const parsed = JSON.parse(content) as Record<string, unknown>;
 
-    if (typeof parsed.version !== 'string' || parsed.version !== version) {
-      return { version, entries: {} };
+    if (typeof parsed.version !== 'string' || parsed.version !== getPackageVersion()) {
+      return { version: getPackageVersion(), entries: {} };
     }
 
     if (typeof parsed.entries !== 'object' || Array.isArray(parsed.entries)) {
-      return { version, entries: {} };
+      return { version: getPackageVersion(), entries: {} };
     }
 
     return {
-      version,
+      version: getPackageVersion(),
       entries: parsed.entries as Record<string, CacheEntry>,
     };
   } catch {
-    return { version, entries: {} };
+    return { version: getPackageVersion(), entries: {} };
   }
 }
 

@@ -33,3 +33,37 @@ jobs:
 
       - name: Lint
         run: pnpm lint
+
+  vscode-extension:
+    name: VS Code extension (unit + integration)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build core package
+        run: pnpm --filter env-var-auditor build
+
+      - name: Build extension bundle
+        run: pnpm --filter env-var-auditor-vscode build
+
+      - name: Unit tests (vitest, no extension host)
+        run: pnpm --filter env-var-auditor-vscode test
+
+      - name: Install xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      - name: Integration tests (@vscode/test-electron, headless via xvfb)
+        run: xvfb-run -a pnpm --filter env-var-auditor-vscode test:integration

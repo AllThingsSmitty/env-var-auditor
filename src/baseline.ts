@@ -3,8 +3,19 @@ import path from 'path';
 import { createRequire } from 'module';
 import type { AuditResult, WorkspaceAuditResult } from './types.js';
 
-const require = createRequire(import.meta.url);
-const { version } = require('../package.json') as { version: string };
+// Lazy + memoized — see the comment on the equivalent helper in audit.ts:
+// reading this eagerly at module load time via `createRequire(import.meta.url)`
+// breaks consumers that bundle this ESM module into CommonJS (e.g. the VS
+// Code extension's esbuild bundle), since esbuild can't polyfill
+// `import.meta.url` for CJS output.
+let cachedVersion: string | undefined;
+function getPackageVersion(): string {
+  if (cachedVersion === undefined) {
+    const require = createRequire(import.meta.url);
+    cachedVersion = (require('../package.json') as { version: string }).version;
+  }
+  return cachedVersion;
+}
 
 export interface BaselineData {
   version: string;
@@ -36,7 +47,7 @@ export interface BaselineComparison {
 
 export function createBaseline(result: AuditResult): BaselineData {
   return {
-    version,
+    version: getPackageVersion(),
     timestamp: new Date().toISOString(),
     findings: {
       clientExposed: result.clientExposed.map((f) => f.name),
@@ -111,9 +122,9 @@ export function loadBaseline(baselinePath: string): BaselineData {
 }
 
 export function validateBaselineVersion(baseline: BaselineData): void {
-  if (baseline.version !== version) {
+  if (baseline.version !== getPackageVersion()) {
     throw new Error(
-      `Baseline version mismatch: baseline is from v${baseline.version} but tool is v${version}. ` +
+      `Baseline version mismatch: baseline is from v${baseline.version} but tool is v${getPackageVersion()}. ` +
         `Run 'env-var-auditor . --save-baseline' to regenerate.`,
     );
   }
@@ -208,7 +219,7 @@ export function compareWorkspaceBaselines(
     if (!fs.existsSync(baselinePath)) {
       baselineMissing = true;
       baseline = {
-        version,
+        version: getPackageVersion(),
         timestamp: new Date().toISOString(),
         findings: {
           clientExposed: [],
