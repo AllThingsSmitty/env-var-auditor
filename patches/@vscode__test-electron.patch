@@ -1,0 +1,22 @@
+diff --git a/out/runTest.js b/out/runTest.js
+index a80cf1223224655ae95b1ad30ad0372d46e3995e..29f502ca472502ea484b76f87bfbc909e99e1c2b 100644
+--- a/out/runTest.js
++++ b/out/runTest.js	
+@@ -71,7 +71,16 @@ const SIGINT = 'SIGINT';
+ async function innerRunTests(executable, args, testRunnerEnv) {
+     const fullEnv = Object.assign({}, process.env, testRunnerEnv);
+     const shell = process.platform === 'win32';
+-    const cmd = cp.spawn(shell ? `"${executable}"` : executable, args, { env: fullEnv, shell });
++    // Patch (env-var-auditor): on win32, cp.spawn's shell mode joins
++    // [executable, ...args] into a single command-line string without
++    // quoting each arg — only `executable` gets wrapped in quotes above. Any
++    // arg containing a space (e.g. --extensionTestsPath=/--extensionDevelopmentPath=
++    // pointing into a directory with a space in it, like a OneDrive folder
++    // named "OneDrive - Company") gets silently split apart by cmd.exe,
++    // corrupting the path. Quoting every arg that contains a space fixes
++    // this without changing behavior for paths that don't have spaces.
++    const spawnArgs = shell ? args.map((a) => (a.includes(' ') ? `"${a}"` : a)) : args;
++    const cmd = cp.spawn(shell ? `"${executable}"` : executable, spawnArgs, { env: fullEnv, shell });
+     let exitRequested = false;
+     const ctrlc1 = () => {
+         process.removeListener(SIGINT, ctrlc1);

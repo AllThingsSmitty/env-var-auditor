@@ -1,0 +1,94 @@
+{
+  "name": "env-var-auditor-vscode",
+  "displayName": "Env Var Auditor",
+  "description": "Inline diagnostics for undeclared, unread, and client-exposed environment variables.",
+  "version": "0.1.0",
+  "publisher": "AllThingsSmitty",
+  "private": true,
+  "license": "MIT",
+  "categories": [
+    "Linters"
+  ],
+  "keywords": [
+    "environment variables",
+    "env",
+    "nextjs",
+    "linter"
+  ],
+  "engines": {
+    "vscode": "^1.85.0",
+    "node": ">=18.0.0"
+  },
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "envVarAuditor.rescanWorkspace",
+        "title": "Env Var Auditor: Rescan Workspace"
+      }
+    ],
+    "configuration": {
+      "title": "Env Var Auditor",
+      "properties": {
+        "envVarAuditor.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable Env Var Auditor diagnostics."
+        },
+        "envVarAuditor.ignore": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Additional glob patterns to ignore, merged with the ignore list from .env-auditorrc.json."
+        },
+        "envVarAuditor.secretPatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Additional regular expression sources (as strings) for detecting secret-like variable names, merged with .env-auditorrc.json's secretPatterns list."
+        },
+        "envVarAuditor.configPath": {
+          "type": "string",
+          "default": "",
+          "description": "Override path to the .env-auditorrc.json config file. Leave empty to auto-discover at the workspace root."
+        },
+        "envVarAuditor.debounceMs": {
+          "type": "number",
+          "default": 300,
+          "description": "Debounce window, in milliseconds, before re-analyzing a file after an edit."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.js --production",
+    "dev": "node esbuild.js --watch",
+    "watch": "node esbuild.js --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "compile-tests": "tsc -p tsconfig.test.json",
+    "test:integration": "node esbuild.js --production && tsc -p tsconfig.test.json && vscode-test"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "env-var-auditor": "workspace:*",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/test-cli": "^0.0.11",
+    "@vscode/test-electron": "^2.5.2",
+    "esbuild": "^0.28.0",
+    "minimatch": "^10.2.2",
+    "mocha": "^11.1.0",
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.11"
+  }
+}

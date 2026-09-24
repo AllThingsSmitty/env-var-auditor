@@ -8,8 +8,23 @@ import { analyze } from './analyzers/index.js';
 import { loadCache, saveCache, resolveAccesses, getDefaultCachePath } from './cache.js';
 import type { AuditOptions, AuditResult, EnvDeclaration } from './types.js';
 
-const require = createRequire(import.meta.url);
-const { version } = require('../package.json') as { version: string };
+// Lazy + memoized: `version` is only read for the on-disk cache file (see the
+// `saveCache` call below, gated behind `options.useCache`). Reading it eagerly
+// at module load time via `createRequire(import.meta.url)` breaks consumers
+// that bundle this ESM module into CommonJS (e.g. the VS Code extension's
+// esbuild bundle) — esbuild can't polyfill `import.meta.url` for CJS output,
+// so the top-level call throws as soon as the module is imported, even for
+// callers (like `collectAuditInputs` with `useCache: false`) that never touch
+// the cache at all. Deferring the read until it's actually needed means it
+// only ever runs under real ESM (the CLI), where `import.meta.url` is valid.
+let cachedVersion: string | undefined;
+function getPackageVersion(): string {
+  if (cachedVersion === undefined) {
+    const require = createRequire(import.meta.url);
+    cachedVersion = (require('../package.json') as { version: string }).version;
+  }
+  return cachedVersion;
+}
 
 const ENV_FILE_NAMES = [
   '.env',
@@ -58,7 +73,14 @@ function collectEnvDeclarations(searchDir: string): { declarations: EnvDeclarati
   return { declarations, envFiles };
 }
 
-export async function audit(options: AuditOptions): Promise<AuditResult> {
+export interface AuditInputs {
+  declarations: EnvDeclaration[];
+  accesses: ReturnType<typeof parseCodeFiles>;
+  envFiles: string[];
+  sourceFiles: string[];
+}
+
+export async function collectAuditInputs(options: AuditOptions): Promise<AuditInputs> {
   const dir = path.resolve(options.dir);
   const rootDir = options.rootDir ? path.resolve(options.rootDir) : undefined;
   const ignorePatterns = [...DEFAULT_IGNORE, ...(options.ignorePatterns ?? [])];
@@ -73,8 +95,8 @@ export async function audit(options: AuditOptions): Promise<AuditResult> {
   const pkgNames = new Set(pkgDeclarations.map((d) => d.name));
   const filteredRootDeclarations = rootDeclarations.filter((d) => !pkgNames.has(d.name));
 
-  const allDeclarations: EnvDeclaration[] = [...filteredRootDeclarations, ...pkgDeclarations];
-  const foundEnvFiles = [...rootEnvFiles, ...pkgEnvFiles];
+  const declarations: EnvDeclaration[] = [...filteredRootDeclarations, ...pkgDeclarations];
+  const envFiles = [...rootEnvFiles, ...pkgEnvFiles];
 
   // 2. Find source files
   const sourceFiles = await glob(SOURCE_GLOBS, {
@@ -84,31 +106,46 @@ export async function audit(options: AuditOptions): Promise<AuditResult> {
   });
 
   // 3. Parse source files for process.env accesses
-  let allAccesses;
+  let accesses;
   let cacheEntries;
 
   if (options.useCache) {
     const cachePath = getDefaultCachePath(dir);
     const cache = loadCache(cachePath);
     const result = resolveAccesses(sourceFiles, cache, parseCodeFiles);
-    allAccesses = result.accesses;
+    accesses = result.accesses;
     cacheEntries = result.entries;
   } else {
     const fileContents = sourceFiles.map((f) => ({
       path: f,
       content: fs.readFileSync(f, 'utf-8'),
     }));
-    allAccesses = parseCodeFiles(fileContents);
+    accesses = parseCodeFiles(fileContents);
   }
 
-  // 4. Cross-reference
-  const analysis = analyze(allDeclarations, allAccesses, {
+  // Save cache if it was used
+  if (options.useCache && cacheEntries) {
+    const cachePath = getDefaultCachePath(dir);
+    saveCache(cachePath, { version: getPackageVersion(), entries: cacheEntries });
+  }
+
+  return { declarations, accesses, envFiles, sourceFiles };
+}
+
+export async function audit(options: AuditOptions): Promise<AuditResult> {
+  const dir = path.resolve(options.dir);
+  const rootDir = options.rootDir ? path.resolve(options.rootDir) : undefined;
+
+  const { declarations, accesses, envFiles, sourceFiles } = await collectAuditInputs(options);
+
+  // Cross-reference
+  const analysis = analyze(declarations, accesses, {
     extraSecretPatterns: options.secretPatterns,
   });
 
-  // 5. Root-level declarations that go unread in this package are not a finding —
-  //    they may be consumed by other packages in the workspace.
-  //    A "root-level" declaration is one that lives under rootDir but NOT under dir.
+  // Root-level declarations that go unread in this package are not a finding —
+  // they may be consumed by other packages in the workspace.
+  // A "root-level" declaration is one that lives under rootDir but NOT under dir.
   const declaredButUnread = rootDir
     ? analysis.declaredButUnread.filter((d) => {
         const inRoot = d.source.startsWith(rootDir + path.sep);
@@ -117,18 +154,10 @@ export async function audit(options: AuditOptions): Promise<AuditResult> {
       })
     : analysis.declaredButUnread;
 
-  const result = {
+  return {
     scannedFiles: sourceFiles.length,
-    scannedEnvFiles: foundEnvFiles.length,
+    scannedEnvFiles: envFiles.length,
     ...analysis,
     declaredButUnread,
   };
-
-  // Save cache if it was used
-  if (options.useCache && cacheEntries) {
-    const cachePath = getDefaultCachePath(dir);
-    saveCache(cachePath, { version, entries: cacheEntries });
-  }
-
-  return result;
 }

@@ -11,8 +11,18 @@ import type {
   PackageBaselineResult,
 } from "../baseline.js";
 
-const require = createRequire(import.meta.url);
-const { version } = require("../../package.json") as { version: string };
+// Lazy + memoized — see the comment on the equivalent helper in ../audit.ts:
+// reading this eagerly at module load time via `createRequire(import.meta.url)`
+// breaks consumers that bundle this ESM module into CommonJS, since esbuild
+// (and similar bundlers) can't polyfill `import.meta.url` for CJS output.
+let cachedVersion: string | undefined;
+function getPackageVersion(): string {
+  if (cachedVersion === undefined) {
+    const require = createRequire(import.meta.url);
+    cachedVersion = (require("../../package.json") as { version: string }).version;
+  }
+  return cachedVersion;
+}
 
 interface SarifRegion {
   startLine: number;
@@ -295,7 +305,7 @@ export function formatBaselineSarifJson(
     tool: {
       driver: {
         name: "env-var-auditor",
-        version,
+        version: getPackageVersion(),
         rules: RULES,
       },
     },
@@ -324,7 +334,7 @@ export function formatWorkspaceBaselineSarifJson(
     tool: {
       driver: {
         name: "env-var-auditor",
-        version,
+        version: getPackageVersion(),
         rules: RULES,
       },
     },
@@ -369,7 +379,7 @@ export function formatSarifJson(
     tool: {
       driver: {
         name: "env-var-auditor",
-        version,
+        version: getPackageVersion(),
         rules: RULES,
       },
     },
@@ -404,7 +414,7 @@ export function formatWorkspaceSarifJson(
       tool: {
         driver: {
           name: "env-var-auditor",
-          version,
+          version: getPackageVersion(),
           rules: RULES,
         },
       },
