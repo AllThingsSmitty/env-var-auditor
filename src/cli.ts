@@ -19,7 +19,12 @@ import {
   formatProgressJson,
   formatWorkspaceProgressJson,
 } from './output/json.js';
-import { formatSarifJson, formatWorkspaceSarifJson } from './output/sarif.js';
+import {
+  formatSarifJson,
+  formatWorkspaceSarifJson,
+  formatBaselineSarifJson,
+  formatWorkspaceBaselineSarifJson,
+} from './output/sarif.js';
 import { formatJunitXml, formatWorkspaceJunitXml } from './output/junit.js';
 import {
   formatHtml,
@@ -184,6 +189,8 @@ program
 
             if (format === 'json') {
               process.stdout.write(formatWorkspaceBaselineJson(baselineResults, opts.showAll) + '\n');
+            } else if (format === 'sarif') {
+              process.stdout.write(formatWorkspaceBaselineSarifJson(baselineResults, opts.showAll) + '\n');
             } else {
               process.stdout.write(formatWorkspaceBaselineTable(baselineResults, process.cwd(), version, opts.showAll) + '\n');
             }
@@ -280,6 +287,8 @@ program
 
             if (format === 'json') {
               process.stdout.write(formatBaselineJson(result, comparison, baseline, opts.showAll) + '\n');
+            } else if (format === 'sarif') {
+              process.stdout.write(formatBaselineSarifJson(result, comparison, baseline, opts.showAll) + '\n');
             } else {
               process.stdout.write(
                 formatBaselineTable(result, comparison, process.cwd(), version, baseline, opts.showAll) + '\n',

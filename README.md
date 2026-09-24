@@ -140,6 +140,14 @@ SARIF output enables:
 
 This will surface findings in your repo's Security → Code scanning tab, alongside other static analysis results.
 
+**With baseline comparison:**
+
+```bash
+env-var-auditor . --format sarif --baseline > audit-results.sarif
+```
+
+By default, SARIF results include only *new* findings (not present in the baseline), so code scanning only alerts on regressions. Pass `--show-all` to also include baseline findings — they're included with `suppressions: [{ kind: "external" }]` and `properties.baselineState: "unchanged"`, so tools that honor SARIF suppressions (including GitHub code scanning) treat them as known/dismissed rather than active alerts. New findings carry `properties.baselineState: "new"` and no suppression.
+
 ### JUnit XML
 
 Standard test report format for CI/CD dashboards and test aggregation tools:
