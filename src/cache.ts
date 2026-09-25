@@ -73,6 +73,19 @@ export function saveCache(cachePath: string, cache: CacheData): void {
   fs.writeFileSync(cachePath, JSON.stringify(cache, null, 2) + '\n', 'utf-8');
 }
 
+/**
+ * Normalizes a path for identity comparison only (never used as a stored or
+ * returned path) so that Windows backslash-vs-forward-slash and drive-letter
+ * casing differences between two sources of the "same" path don't cause a
+ * false mismatch.
+ */
+function normalizePathForComparison(filePath: string): string {
+  const withForwardSlashes = filePath.replace(/\\/g, '/');
+  return /^[a-zA-Z]:\//.test(withForwardSlashes)
+    ? withForwardSlashes[0].toLowerCase() + withForwardSlashes.slice(1)
+    : withForwardSlashes;
+}
+
 export function resolveAccesses(
   sourceFiles: string[],
   cache: CacheData,
@@ -123,11 +136,21 @@ export function resolveAccesses(
   if (filesToParse.length > 0) {
     const parsedAccesses = parseCodeFiles(filesToParse);
 
-    // Group parsed accesses by their original file index
+    // Group parsed accesses by their original file index. Matched by
+    // normalized path rather than exact string equality: `access.file` comes
+    // back from ts-morph's `sourceFile.getFilePath()`, which standardizes
+    // slashes and lowercases the drive letter on Windows, while `f.path`
+    // here is whatever casing/separator the caller's `sourceFiles` list used
+    // (typically forward-slash from `glob`, but not guaranteed to agree on
+    // drive-letter case) — an exact-string mismatch here previously caused
+    // every parsed access to be silently dropped on Windows.
+    const indexByNormalizedPath = new Map(
+      filesToParse.map((f, index) => [normalizePathForComparison(f.path), index]),
+    );
     const accessesByFile: Record<number, EnvAccess[]> = {};
     for (const access of parsedAccesses) {
-      const fileIndex = filesToParse.findIndex((f) => f.path === access.file);
-      if (fileIndex >= 0) {
+      const fileIndex = indexByNormalizedPath.get(normalizePathForComparison(access.file));
+      if (fileIndex !== undefined) {
         if (!accessesByFile[fileIndex]) {
           accessesByFile[fileIndex] = [];
         }
