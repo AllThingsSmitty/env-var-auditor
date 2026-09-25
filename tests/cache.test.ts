@@ -11,6 +11,7 @@ import {
   getDefaultCachePath,
   type CacheData,
 } from '../src/cache.js';
+import { parseCodeFiles } from '../src/parsers/code.js';
 import type { EnvAccess } from '../src/types.js';
 
 const require = createRequire(import.meta.url);
@@ -306,6 +307,41 @@ describe('cache', () => {
       ]);
       // Result should include both accesses
       expect(result.accesses).toEqual([access1, access2]);
+    });
+
+    it('matches parsed accesses back to their file even when the path casing/separators differ', () => {
+      // Regression test: a mocked `parseCodeFiles` standing in for ts-morph,
+      // which returns paths with a lowercased drive letter and forward
+      // slashes (its actual normalization behavior on Windows) even though
+      // the input path used a different casing/separator style, as `glob`'s
+      // absolute paths can. Previously this mismatch caused every parsed
+      // access to be silently dropped instead of attributed to its file.
+      const cache: CacheData = { version: pkg.version, entries: {} };
+      const realFilePath = path.join(tempDir, 'file.ts');
+      fs.writeFileSync(realFilePath, 'const x = process.env.MISMATCHED_CASE;');
+      const mismatchedCasePath =
+        realFilePath.charAt(0).toUpperCase() === realFilePath.charAt(0)
+          ? realFilePath.charAt(0).toLowerCase() + realFilePath.slice(1)
+          : realFilePath.charAt(0).toUpperCase() + realFilePath.slice(1);
+      const accessWithDifferentCase: EnvAccess = { ...mockAccess, file: mismatchedCasePath, name: 'MISMATCHED_CASE' };
+      const mockParseCodeFilesReal = vi.fn(() => [accessWithDifferentCase]);
+
+      const result = resolveAccesses([realFilePath], cache, mockParseCodeFilesReal);
+
+      expect(result.accesses).toEqual([accessWithDifferentCase]);
+      expect(result.entries[realFilePath]?.accesses).toEqual([accessWithDifferentCase]);
+    });
+
+    it('does not drop accesses on a real (non-mocked) parse of a fresh cache, matching parseCodeFiles output', () => {
+      const filePath = path.join(tempDir, 'route.ts');
+      fs.writeFileSync(filePath, 'export const x = process.env.REAL_PARSE_VAR;\n');
+
+      const cache: CacheData = { version: pkg.version, entries: {} };
+      const result = resolveAccesses([filePath], cache, parseCodeFiles);
+
+      expect(result.accesses).toHaveLength(1);
+      expect(result.accesses[0]?.name).toBe('REAL_PARSE_VAR');
+      expect(result.entries[filePath]?.accesses).toHaveLength(1);
     });
   });
 });
