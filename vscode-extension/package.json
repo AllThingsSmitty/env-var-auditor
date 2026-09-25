@@ -6,6 +6,11 @@
   "publisher": "AllThingsSmitty",
   "private": true,
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AllThingsSmitty/env-var-auditor.git",
+    "directory": "vscode-extension"
+  },
   "categories": [
     "Linters"
   ],
