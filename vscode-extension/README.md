@@ -3,16 +3,18 @@
 Inline diagnostics for environment-variable problems that runtime validators
 miss:
 
-- **Client-exposed** (Error) — a secret-looking or unprefixed variable is read
+- **Client-exposed** (Error): a secret-looking or unprefixed variable is read
   from a `'use client'` file, so it will end up in the browser bundle.
-- **Read but undeclared** (Warning) — code reads `process.env.FOO`, but `FOO`
+- **Read but undeclared** (Warning): code reads `process.env.FOO`, but `FOO`
   is never declared in any `.env*` file, so it will be `undefined` at runtime.
-- **Declared but unread** (Hint, shown dimmed) — `FOO` is declared in a
+- **Declared but unread** (Hint, shown dimmed): `FOO` is declared in a
   `.env*` file but never read anywhere in the codebase.
 
 Diagnostics are computed with the same [`env-var-auditor`](https://github.com/AllThingsSmitty/env-var-auditor)
 static-analysis engine used by the CLI and ESLint plugin, and update live as
-you type — no build step or ESLint config required.
+you type. No build step or ESLint config required.
+
+![All three diagnostic types shown in the editor and Problems panel](../.github/assets/env-var-auditor.png)
 
 ## Features
 
@@ -28,13 +30,13 @@ you type — no build step or ESLint config required.
 
 ## Settings
 
-| Setting | Type | Default | Description |
-|---|---|---|---|
-| `envVarAuditor.enable` | boolean | `true` | Enable or disable diagnostics. |
-| `envVarAuditor.ignore` | string[] | `[]` | Extra glob patterns to ignore, merged with `.env-auditorrc.json`. |
-| `envVarAuditor.secretPatterns` | string[] | `[]` | Extra secret-name regex sources, merged with `.env-auditorrc.json`. |
-| `envVarAuditor.configPath` | string | `""` | Override path to `.env-auditorrc.json`. Empty auto-discovers at the workspace root. |
-| `envVarAuditor.debounceMs` | number | `300` | Debounce window (ms) before re-analyzing an edited file. |
+| Setting                        | Type     | Default | Description                                                                         |
+| ------------------------------ | -------- | ------- | ----------------------------------------------------------------------------------- |
+| `envVarAuditor.enable`         | boolean  | `true`  | Enable or disable diagnostics.                                                      |
+| `envVarAuditor.ignore`         | string[] | `[]`    | Extra glob patterns to ignore, merged with `.env-auditorrc.json`.                   |
+| `envVarAuditor.secretPatterns` | string[] | `[]`    | Extra secret-name regex sources, merged with `.env-auditorrc.json`.                 |
+| `envVarAuditor.configPath`     | string   | `""`    | Override path to `.env-auditorrc.json`. Empty auto-discovers at the workspace root. |
+| `envVarAuditor.debounceMs`     | number   | `300`   | Debounce window (ms) before re-analyzing an edited file.                            |
 
 Severities are fixed in v1 (client-exposed = Error, read-but-undeclared =
 Warning, declared-but-unread = Hint) and are not user-configurable.
@@ -43,7 +45,7 @@ Warning, declared-but-unread = Hint) and are not user-configurable.
 
 - Single-root workspaces only; with multiple folders open, only the first is
   audited.
-- No dashboard webview and no baseline-awareness — this extension is
+- No dashboard webview and no baseline-awareness. This extension is
   inline-diagnostics only. Use the CLI's `--baseline`/`--progress` flags for
   that.
 - The `unauditable` (dynamic `process.env[x]`) finding bucket is not
@@ -51,15 +53,20 @@ Warning, declared-but-unread = Hint) and are not user-configurable.
 - No monorepo package-boundary awareness (`auditWorkspace`); the whole
   workspace root is treated as one package.
 
-## Development
+## Contributing
+
+The sections below are for people building or debugging this extension, not
+for end users.
+
+### Development
 
 This extension depends on the core `env-var-auditor` package via
-`workspace:*`, resolved to its compiled `dist/` output — not a `../src`
+`workspace:*`, resolved to its compiled `dist/` output, not a `../src`
 relative import. When developing against local core-library changes, run the
 core package's watch build concurrently from the repo root:
 
 ```sh
-pnpm dev            # from the repo root — tsc --watch for env-var-auditor
+pnpm dev            # from the repo root, tsc --watch for env-var-auditor
 ```
 
 Then, from `vscode-extension/`:
