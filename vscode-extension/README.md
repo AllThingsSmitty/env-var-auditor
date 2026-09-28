@@ -14,7 +14,7 @@ Diagnostics are computed with the same [`env-var-auditor`](https://github.com/Al
 static-analysis engine used by the CLI and ESLint plugin, and update live as
 you type. No build step or ESLint config required.
 
-![All three diagnostic types shown in the editor and Problems panel](../.github/assets/env-var-auditor.png)
+![All three diagnostic types shown in the editor and Problems panel](https://github.com/AllThingsSmitty/env-var-auditor/raw/main/.github/assets/env-var-auditor.png)
 
 ## Features
 
