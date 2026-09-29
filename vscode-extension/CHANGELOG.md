@@ -2,6 +2,11 @@
 
 All notable changes to the "Env Var Auditor" extension are documented here.
 
+## 0.1.1
+
+- Added extension icon (icon.png / icon.svg) and icon generation script.
+- Updated `.vscodeignore` to trim the packaged VSIX size.
+
 ## 0.1.0
 
 - Initial release: inline diagnostics for client-exposed, read-but-undeclared,
