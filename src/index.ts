@@ -1,4 +1,4 @@
-export { audit, collectAuditInputs } from './audit.js';
+export { audit, collectAuditInputs, findEnvFiles } from './audit.js';
 export { auditWorkspace } from './workspace.js';
 export { loadConfig } from './config.js';
 export { analyze } from './analyzers/index.js';

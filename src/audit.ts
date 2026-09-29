@@ -57,6 +57,20 @@ const DEFAULT_IGNORE = [
   '**/tests/**',
 ];
 
+/**
+ * Finds all standard .env* files under `dir`, searching recursively.
+ * Unlike `collectEnvDeclarations` (which only checks `dir` itself), this
+ * uses glob so it works when .env files live in subdirectories — e.g. nested
+ * project structures or a VS Code workspace opened above the project root.
+ */
+export async function findEnvFiles(dir: string, ignore?: string[]): Promise<string[]> {
+  const absDir = path.resolve(dir);
+  const ignoreList = ['**/node_modules/**', ...(ignore ?? [])];
+  const found = await glob('**/.env*', { cwd: absDir, ignore: ignoreList, absolute: true });
+  const names = new Set(ENV_FILE_NAMES);
+  return found.filter((f) => names.has(path.basename(f))).sort();
+}
+
 function collectEnvDeclarations(searchDir: string): { declarations: EnvDeclaration[]; envFiles: string[] } {
   const declarations: EnvDeclaration[] = [];
   const envFiles: string[] = [];
