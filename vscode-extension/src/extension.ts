@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
-import { collectAuditInputs, loadConfig, parseCodeFiles, parseEnvFile } from 'env-var-auditor';
-import type { EnvAuditorConfig } from 'env-var-auditor';
+import { collectAuditInputs, findEnvFiles, loadConfig, parseCodeFiles, parseEnvFile } from 'env-var-auditor';
+import type { EnvAuditorConfig, EnvDeclaration } from 'env-var-auditor';
 import { ProjectState } from './projectState.js';
 import { resolveEffectiveConfig, DEFAULT_VSCODE_SETTINGS } from './configResolver.js';
 import type { EffectiveConfig, VsCodeAuditorSettings } from './configResolver.js';
@@ -124,6 +124,21 @@ export function activate(context: vscode.ExtensionContext): void {
         secretPatterns: effectiveConfig.secretPatterns,
         useCache: false,
       });
+      // collectAuditInputs only checks the workspace root for .env files.
+      // findEnvFiles searches recursively so that projects where .env lives in
+      // a subdirectory (monorepos, or a workspace opened above the project root)
+      // are also covered. Without this, any variable declared in a nested .env
+      // is falsely flagged as "read-but-undeclared" on every scan.
+      const alreadyScanned = new Set(inputs.envFiles.map(normalizeFileKey));
+      const allEnvPaths = await findEnvFiles(rootDir);
+      const extraDecls: EnvDeclaration[] = [];
+      for (const envPath of allEnvPaths) {
+        if (!alreadyScanned.has(normalizeFileKey(envPath))) {
+          const content = readFileFromDisk(envPath);
+          if (content !== undefined) extraDecls.push(...parseEnvFile(content, envPath));
+        }
+      }
+
       // Normalize every declaration/access's file-identity string to VS
       // Code's own Uri.file(...).fsPath casing (e.g. lowercased drive letter
       // on Windows). `collectAuditInputs` sources its paths via `glob`,
@@ -134,11 +149,15 @@ export function activate(context: vscode.ExtensionContext): void {
       // two different ProjectState keys across a rescan + a live edit, and
       // diagnostics for one casing could clobber the other's — see the
       // matching comment on `normalizeFileKey` in diagnostics.ts.
-      const declarations = inputs.declarations.map((d) => ({ ...d, source: normalizeFileKey(d.source) }));
+      const declarations = [
+        ...inputs.declarations.map((d) => ({ ...d, source: normalizeFileKey(d.source) })),
+        ...extraDecls.map((d) => ({ ...d, source: normalizeFileKey(d.source) })),
+      ];
       const accesses = inputs.accesses.map((a) => ({ ...a, file: normalizeFileKey(a.file) }));
       projectState.seedAll(declarations, accesses);
+      const extraEnvCount = allEnvPaths.filter((p) => !alreadyScanned.has(normalizeFileKey(p))).length;
       log(
-        `Rescanned workspace: ${inputs.sourceFiles.length} source file(s), ${inputs.envFiles.length} env file(s).`,
+        `Rescanned workspace: ${inputs.sourceFiles.length} source file(s), ${inputs.envFiles.length + extraEnvCount} env file(s).`,
       );
       schedulePublish();
     } catch (err) {
