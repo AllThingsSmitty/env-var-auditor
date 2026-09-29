@@ -2,6 +2,12 @@
 
 All notable changes to the "Env Var Auditor" extension are documented here.
 
+## 0.1.2
+
+- Fixed false-positive "read-but-undeclared" diagnostics for variables declared
+  in `.env*` files located in subdirectories. The extension now searches
+  recursively for env files instead of only checking the workspace root.
+
 ## 0.1.1
 
 - Added extension icon (icon.png / icon.svg) and icon generation script.
