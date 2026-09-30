@@ -2,7 +2,7 @@
   "name": "env-var-auditor-vscode",
   "displayName": "Env Var Auditor",
   "description": "Inline diagnostics for undeclared, unread, and client-exposed environment variables.",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "publisher": "AllThingsSmitty",
   "icon": "icon.png",
   "license": "MIT",

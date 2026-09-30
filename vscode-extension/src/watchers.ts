@@ -5,6 +5,7 @@ import * as vscode from 'vscode';
 
 const SOURCE_GLOB = '**/*.{ts,tsx,js,jsx,mjs,cjs}';
 const ENV_GLOB = '**/.env*';
+const WEB_CONFIG_GLOB = '**/web.config*';
 const CONFIG_GLOB = '**/.env-auditorrc.json';
 
 export interface WatcherCallbacks {
@@ -49,6 +50,11 @@ export function registerWatchers(context: vscode.ExtensionContext, callbacks: Wa
   envWatcher.onDidCreate((uri) => callbacks.onFileCreated(uri));
   envWatcher.onDidDelete((uri) => callbacks.onFileDeleted(uri));
 
+  const webConfigWatcher = vscode.workspace.createFileSystemWatcher(WEB_CONFIG_GLOB);
+  webConfigWatcher.onDidChange((uri) => callbacks.onFileChanged(uri));
+  webConfigWatcher.onDidCreate((uri) => callbacks.onFileCreated(uri));
+  webConfigWatcher.onDidDelete((uri) => callbacks.onFileDeleted(uri));
+
   // `.env-auditorrc.json` changes can change the *set* of scanned files
   // (ignore/secretPatterns), so any change to it triggers a full rescan
   // rather than an incremental per-file update.
@@ -57,5 +63,5 @@ export function registerWatchers(context: vscode.ExtensionContext, callbacks: Wa
   configWatcher.onDidCreate(() => callbacks.onConfigChanged());
   configWatcher.onDidDelete(() => callbacks.onConfigChanged());
 
-  context.subscriptions.push(sourceWatcher, envWatcher, configWatcher);
+  context.subscriptions.push(sourceWatcher, envWatcher, webConfigWatcher, configWatcher);
 }

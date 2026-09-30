@@ -26,6 +26,9 @@ you type. No build step or ESLint config required.
   and Explorer file moves.
 - Reads `.env-auditorrc.json` automatically; VS Code settings layer
   additively on top of it.
+- Reads `web.config*` files automatically so that variables declared via
+  `<environmentVariable name="..." />` (IIS / Azure App Service) are not
+  flagged as read-but-undeclared.
 - `Env Var Auditor: Rescan Workspace` command for an on-demand full rescan.
 
 ## Requirements
