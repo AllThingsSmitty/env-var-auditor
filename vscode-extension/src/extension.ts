@@ -10,6 +10,7 @@ import { isIgnored } from './ignoreMatcher.js';
 import { createDebouncer, createKeyedDebouncer } from './debounce.js';
 import type { KeyedDebouncer } from './debounce.js';
 import { buildDiagnosticsByFile, createLineTextLookup, normalizeFileKey } from './diagnostics.js';
+import { parseWebConfigFile } from './webConfigParser.js';
 import { publish } from './diagnosticsPublisher.js';
 import { registerWatchers } from './watchers.js';
 import { registerCommands } from './commands.js';
@@ -29,6 +30,11 @@ function isSourceFile(fsPath: string): boolean {
 function isEnvFile(fsPath: string): boolean {
   const base = path.basename(fsPath);
   return base === '.env' || base.startsWith('.env.');
+}
+
+function isWebConfigFile(fsPath: string): boolean {
+  const base = path.basename(fsPath).toLowerCase();
+  return base === 'web.config' || base.startsWith('web.config.');
 }
 
 function readVsCodeSettings(): VsCodeAuditorSettings {
@@ -140,6 +146,18 @@ export function activate(context: vscode.ExtensionContext): void {
         }
       }
 
+      // Parse web.config* files so that IIS/Azure App Service variables
+      // declared there are not flagged as read-but-undeclared.
+      const webConfigUris = await vscode.workspace.findFiles(
+        '**/web.config*',
+        '{**/node_modules/**,**/.git/**}',
+      );
+      for (const uri of webConfigUris) {
+        const fsPath = normalizeFileKey(uri.fsPath);
+        const content = readFileFromDisk(fsPath);
+        if (content !== undefined) extraDecls.push(...parseWebConfigFile(content, fsPath));
+      }
+
       // Normalize every declaration/access's file-identity string to VS
       // Code's own Uri.file(...).fsPath casing (e.g. lowercased drive letter
       // on Windows). `collectAuditInputs` sources its paths via `glob`,
@@ -178,7 +196,8 @@ export function activate(context: vscode.ExtensionContext): void {
     const fsPath = document.uri.fsPath;
     const isSource = isSourceFile(fsPath);
     const isEnv = isEnvFile(fsPath);
-    if (!isSource && !isEnv) return;
+    const isWebConfig = isWebConfigFile(fsPath);
+    if (!isSource && !isEnv && !isWebConfig) return;
     if (isIgnoredPath(fsPath)) return;
 
     const key = document.uri.toString();
@@ -192,8 +211,11 @@ export function activate(context: vscode.ExtensionContext): void {
       if (isSource) {
         const accesses = parseCodeFiles([{ path: fsPath, content }]);
         if (projectState.updateAccesses(fsPath, accesses, version)) schedulePublish();
-      } else {
+      } else if (isEnv) {
         const declarations = parseEnvFile(content, fsPath);
+        if (projectState.updateDeclarations(fsPath, declarations, version)) schedulePublish();
+      } else {
+        const declarations = parseWebConfigFile(content, fsPath);
         if (projectState.updateDeclarations(fsPath, declarations, version)) schedulePublish();
       }
     });
@@ -225,6 +247,11 @@ export function activate(context: vscode.ExtensionContext): void {
       const content = readFileFromDisk(fsPath);
       if (content === undefined) return;
       const declarations = parseEnvFile(content, fsPath);
+      if (projectState.updateDeclarations(fsPath, declarations)) schedulePublish();
+    } else if (isWebConfigFile(fsPath)) {
+      const content = readFileFromDisk(fsPath);
+      if (content === undefined) return;
+      const declarations = parseWebConfigFile(content, fsPath);
       if (projectState.updateDeclarations(fsPath, declarations)) schedulePublish();
     }
   }

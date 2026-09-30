@@ -2,6 +2,14 @@
 
 All notable changes to the "Env Var Auditor" extension are documented here.
 
+## 0.1.4
+
+- Added automatic `web.config*` file parsing. Environment variables declared
+  via `<environmentVariable name="..." />` in `web.config`, `web.config.delivery`,
+  `web.config.editor`, and similar environment-specific variants are now treated
+  as declared, eliminating false-positive read-but-undeclared diagnostics for
+  IIS and Azure App Service projects.
+
 ## 0.1.3
 
 - Added `envVarAuditor.declaredVars` setting: an array of variable names treated
