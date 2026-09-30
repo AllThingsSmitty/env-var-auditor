@@ -38,6 +38,7 @@ function readVsCodeSettings(): VsCodeAuditorSettings {
     ignore: config.get('ignore', DEFAULT_VSCODE_SETTINGS.ignore),
     secretPatterns: config.get('secretPatterns', DEFAULT_VSCODE_SETTINGS.secretPatterns),
     configPath: config.get('configPath', DEFAULT_VSCODE_SETTINGS.configPath),
+    declaredVars: config.get('declaredVars', DEFAULT_VSCODE_SETTINGS.declaredVars),
     debounceMs: config.get('debounceMs', DEFAULT_VSCODE_SETTINGS.debounceMs),
   };
 }
@@ -149,9 +150,16 @@ export function activate(context: vscode.ExtensionContext): void {
       // two different ProjectState keys across a rescan + a live edit, and
       // diagnostics for one casing could clobber the other's — see the
       // matching comment on `normalizeFileKey` in diagnostics.ts.
+      const externalDecls: EnvDeclaration[] = effectiveConfig.declaredVars.map((name) => ({
+        name,
+        value: undefined,
+        source: '<workspace-settings>',
+        line: 0,
+      }));
       const declarations = [
         ...inputs.declarations.map((d) => ({ ...d, source: normalizeFileKey(d.source) })),
         ...extraDecls.map((d) => ({ ...d, source: normalizeFileKey(d.source) })),
+        ...externalDecls,
       ];
       const accesses = inputs.accesses.map((a) => ({ ...a, file: normalizeFileKey(a.file) }));
       projectState.seedAll(declarations, accesses);

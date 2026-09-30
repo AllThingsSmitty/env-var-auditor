@@ -14,6 +14,7 @@ describe('resolveEffectiveConfig', () => {
       enable: true,
       ignorePatterns: [],
       secretPatterns: [],
+      declaredVars: [],
       debounceMs: 300,
     });
   });
@@ -44,6 +45,11 @@ describe('resolveEffectiveConfig', () => {
   it('lets the VS Code setting simply override debounceMs (no config-file equivalent)', () => {
     const result = resolveEffectiveConfig(settings({ debounceMs: 750 }), null);
     expect(result.debounceMs).toBe(750);
+  });
+
+  it('passes declaredVars through as-is (no config-file equivalent)', () => {
+    const result = resolveEffectiveConfig(settings({ declaredVars: ['NODE_ENV', 'APP_VERSION'] }), null);
+    expect(result.declaredVars).toEqual(['NODE_ENV', 'APP_VERSION']);
   });
 
   it('handles a file config with no ignore/secretPatterns fields at all', () => {

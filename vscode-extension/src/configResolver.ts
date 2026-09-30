@@ -11,6 +11,7 @@ export interface VsCodeAuditorSettings {
   ignore: string[];
   secretPatterns: string[];
   configPath: string;
+  declaredVars: string[];
   debounceMs: number;
 }
 
@@ -20,6 +21,8 @@ export interface EffectiveConfig {
   ignorePatterns: string[];
   /** `.env-auditorrc.json` secretPatterns + `envVarAuditor.secretPatterns`, additively merged. */
   secretPatterns: string[];
+  /** Variable names treated as externally declared; suppresses read-but-undeclared diagnostics. */
+  declaredVars: string[];
   debounceMs: number;
 }
 
@@ -28,6 +31,7 @@ export const DEFAULT_VSCODE_SETTINGS: VsCodeAuditorSettings = {
   ignore: [],
   secretPatterns: [],
   configPath: '',
+  declaredVars: [],
   debounceMs: 300,
 };
 
@@ -46,6 +50,7 @@ export function resolveEffectiveConfig(
     enable: vsCodeSettings.enable,
     ignorePatterns: mergePatternLists(fileConfig?.ignore, vsCodeSettings.ignore),
     secretPatterns: mergePatternLists(fileConfig?.secretPatterns, vsCodeSettings.secretPatterns),
+    declaredVars: vsCodeSettings.declaredVars,
     debounceMs: vsCodeSettings.debounceMs,
   };
 }
