@@ -2,6 +2,12 @@
 
 All notable changes to the "Env Var Auditor" extension are documented here.
 
+## 0.1.3
+
+- Added `envVarAuditor.declaredVars` setting: an array of variable names treated
+  as externally declared (e.g. from `web.config` or CI/CD environment injection).
+  Listed names are excluded from read-but-undeclared diagnostics.
+
 ## 0.1.2
 
 - Fixed false-positive "read-but-undeclared" diagnostics for variables declared
