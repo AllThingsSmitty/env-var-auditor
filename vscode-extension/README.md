@@ -58,14 +58,14 @@ Use `Env Var Auditor: Rescan Workspace` from the Command Palette
 
 ## Settings
 
-| Setting                        | Type     | Default | Description                                                                         |
-| ------------------------------ | -------- | ------- | ----------------------------------------------------------------------------------- |
-| `envVarAuditor.enable`         | boolean  | `true`  | Enable or disable diagnostics.                                                      |
-| `envVarAuditor.ignore`         | string[] | `[]`    | Extra glob patterns to ignore, merged with `.env-auditorrc.json`.                   |
-| `envVarAuditor.secretPatterns` | string[] | `[]`    | Extra secret-name regex sources, merged with `.env-auditorrc.json`.                 |
-| `envVarAuditor.configPath`     | string   | `""`    | Override path to `.env-auditorrc.json`. Empty auto-discovers at the workspace root. |
+| Setting                        | Type     | Default | Description                                                                                                                                                             |
+| ------------------------------ | -------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `envVarAuditor.enable`         | boolean  | `true`  | Enable or disable diagnostics.                                                                                                                                          |
+| `envVarAuditor.ignore`         | string[] | `[]`    | Extra glob patterns to ignore, merged with `.env-auditorrc.json`.                                                                                                       |
+| `envVarAuditor.secretPatterns` | string[] | `[]`    | Extra secret-name regex sources, merged with `.env-auditorrc.json`.                                                                                                     |
+| `envVarAuditor.configPath`     | string   | `""`    | Override path to `.env-auditorrc.json`. Empty auto-discovers at the workspace root.                                                                                     |
 | `envVarAuditor.declaredVars`   | string[] | `[]`    | Variable names treated as externally declared (e.g. from `web.config` or CI/CD environment injection). Suppresses read-but-undeclared diagnostics for each listed name. |
-| `envVarAuditor.debounceMs`     | number   | `300`   | Debounce window (ms) before re-analyzing an edited file.                            |
+| `envVarAuditor.debounceMs`     | number   | `300`   | Debounce window (ms) before re-analyzing an edited file.                                                                                                                |
 
 All settings can be scoped per-workspace via `.vscode/settings.json`.
 
@@ -94,3 +94,7 @@ See [CHANGELOG.md](https://github.com/AllThingsSmitty/env-var-auditor/blob/main/
 Contributions are welcome. See the [contribution guidelines](https://github.com/AllThingsSmitty/env-var-auditor/blob/main/CONTRIBUTING.md)
 for setup instructions, including how to run the extension locally with F5 and
 how to run the unit and integration test suites.
+
+## License
+
+MIT
