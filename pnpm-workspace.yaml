@@ -6,3 +6,6 @@ packages:
   - 'vscode-extension'
 patchedDependencies:
   '@vscode/test-electron': patches/@vscode__test-electron.patch
+overrides:
+  source-map-js: '>=1.2.2'
+  serialize-javascript: '>=7.0.5'
